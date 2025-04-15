@@ -14,14 +14,21 @@ namespace SCH1_StackLimitPlus
         private static Rect _menuRect = new Rect(20, 20, 310, 170);
         private static bool _sceneLoaded = false;
         private static bool _hasInitialized = false;
+        private static int _frameCounter = 0;
+        private const int CHECK_INTERVAL = 60; 
 
         private static readonly Color _greenColor = new Color(0.2f, 0.8f, 0.3f, 1f);
         private static readonly Color _yellowColor = new Color(1f, 0.9f, 0.2f, 1f);
+        private static Texture2D? _whiteTexture;
 
         public override void OnInitializeMelon()
         {
             base.OnInitializeMelon();
             MelonLogger.Msg("StackLimitPlus Loaded");
+
+            _whiteTexture = new Texture2D(1, 1);
+            _whiteTexture.SetPixel(0, 0, Color.white);
+            _whiteTexture.Apply();
 
             var harmony = new HarmonyLib.Harmony("com.sch1.stacklimitplus");
             harmony.PatchAll();
@@ -43,11 +50,18 @@ namespace SCH1_StackLimitPlus
                 _menuVisible = !_menuVisible;
             }
 
-            if (_sceneLoaded && GameObject.Find("westville") != null && !_hasInitialized)
+            if (_sceneLoaded && !_hasInitialized)
             {
-                InitializeAllItems();
-                _sceneLoaded = false;
-                _hasInitialized = true;
+                _frameCounter++;
+                if (_frameCounter >= CHECK_INTERVAL)
+                {
+                    _frameCounter = 0;
+                    if (GameObject.Find("westville") != null)
+                    {
+                        InitializeAllItems();
+                        _hasInitialized = true;
+                    }
+                }
             }
         }
 
@@ -91,14 +105,10 @@ namespace SCH1_StackLimitPlus
             _globalStackLimit = (int)GUI.HorizontalSlider(new Rect(10, 70, _menuRect.width - 20, 20), _globalStackLimit, 1, 9999);
 
             GUI.Label(new Rect(10, 95, 70, 20), "Presets:");
-            if (GUI.Button(new Rect(70, 95, 35, 20), "10"))
-                _globalStackLimit = 10;
-            if (GUI.Button(new Rect(110, 95, 35, 20), "40"))
-                _globalStackLimit = 40;
-            if (GUI.Button(new Rect(150, 95, 35, 20), "99"))
-                _globalStackLimit = 99;
-            if (GUI.Button(new Rect(190, 95, 45, 20), "999"))
-                _globalStackLimit = 999;
+            if (GUI.Button(new Rect(70, 95, 35, 20), "10")) _globalStackLimit = 10;
+            if (GUI.Button(new Rect(110, 95, 35, 20), "40")) _globalStackLimit = 40;
+            if (GUI.Button(new Rect(150, 95, 35, 20), "99")) _globalStackLimit = 99;
+            if (GUI.Button(new Rect(190, 95, 45, 20), "999")) _globalStackLimit = 999;
 
             if (GUI.Button(new Rect(10, 125, 30, 30), "-"))
             {
@@ -141,7 +151,7 @@ namespace SCH1_StackLimitPlus
         {
             Color savedColor = GUI.color;
             GUI.color = color;
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.DrawTexture(rect, _whiteTexture);
             GUI.color = savedColor;
         }
 
@@ -153,12 +163,13 @@ namespace SCH1_StackLimitPlus
         private static void FindAndUpdateAllItems()
         {
             var resourceItems = Resources.FindObjectsOfTypeAll<ItemDefinition>();
-            MelonLogger.Msg($"Found {resourceItems.Length} items with Resources.FindObjectsOfTypeAll");
+            MelonLogger.Msg($"Found {resourceItems.Length} items");
 
             int newItemsAdded = 0;
-
             foreach (var item in resourceItems)
             {
+                if (item == null) continue;
+
                 if (!ItemDefinitionConstructorPatch.AllItems.Contains(item))
                 {
                     ItemDefinitionConstructorPatch.AllItems.Add(item);
@@ -167,68 +178,65 @@ namespace SCH1_StackLimitPlus
                 }
             }
 
-            MelonLogger.Msg($"Added {newItemsAdded} new items to tracking list");
-            MelonLogger.Msg($"Total items tracked: {ItemDefinitionConstructorPatch.AllItems.Count}");
-
+            MelonLogger.Msg($"Added {newItemsAdded} new items");
             UpdateAllDefinitions();
         }
 
         public static void UpdateAllDefinitions()
         {
             int totalUpdated = 0;
-
             foreach (var item in ItemDefinitionConstructorPatch.AllItems)
             {
+                if (item == null) continue;
+
                 try
                 {
                     UpdateStackLimit(item);
                     totalUpdated++;
                 }
-                catch (Exception ex)
+                catch (System.Exception ex)
                 {
-                    MelonLogger.Error($"Failed to update item: {ex.Message}");
+                    MelonLogger.Error($"Update failed: {ex.Message}");
                 }
             }
-
-            MelonLogger.Msg($"Finished updating StackLimits. Total items updated: {totalUpdated}");
+            MelonLogger.Msg($"Updated {totalUpdated} items");
         }
 
         private static void UpdateStackLimit(ItemDefinition item)
         {
+            if (item == null) return;
+
             try
             {
                 item.StackLimit = _globalStackLimit;
-                MelonLogger.Msg($"StackLimit set to {_globalStackLimit} for {item.Name}");
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
-                MelonLogger.Error($"Failed to update StackLimit for {item.Name}: {ex.Message}");
+                MelonLogger.Error($"Update failed: {ex.Message}");
             }
         }
 
         [HarmonyPatch(typeof(ItemDefinition))]
         public class ItemDefinitionConstructorPatch
         {
-            public static List<ItemDefinition> AllItems = new List<ItemDefinition>();
+            public static HashSet<ItemDefinition> AllItems = new HashSet<ItemDefinition>();
 
             [HarmonyPostfix]
             [HarmonyPatch(MethodType.Constructor)]
             static void OnItemDefinitionCreated(ItemDefinition __instance)
             {
-                if (!AllItems.Contains(__instance))
-                {
-                    AllItems.Add(__instance);
-                    MelonLogger.Msg($"New ItemDefinition created: {__instance.Name}");
-                }
+                if (__instance == null) return;
 
-                try
+                if (AllItems.Add(__instance))
                 {
-                    __instance.StackLimit = Core._globalStackLimit;
-                    MelonLogger.Msg($"Set initial StackLimit to {Core._globalStackLimit} for {__instance.Name}");
-                }
-                catch (Exception ex)
-                {
-                    MelonLogger.Error($"Failed to set initial StackLimit for {__instance.Name}: {ex.Message}");
+                    try
+                    {
+                        __instance.StackLimit = Core._globalStackLimit;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        MelonLogger.Error($"Init failed: {ex.Message}");
+                    }
                 }
             }
         }
