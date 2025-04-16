@@ -1,9 +1,12 @@
-﻿using MelonLoader;
+﻿using System.IO;
+using MelonLoader;
 using HarmonyLib;
 using Il2CppScheduleOne.ItemFramework;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using MelonLoader.Utils;
+using System;
+using Il2CppInterop.Runtime;
 
 namespace SCH1_StackLimitPlus
 {
@@ -15,7 +18,9 @@ namespace SCH1_StackLimitPlus
         private static bool _sceneLoaded = false;
         private static bool _hasInitialized = false;
         private static int _frameCounter = 0;
-        private const int CHECK_INTERVAL = 60; 
+        private const int CHECK_INTERVAL = 60;
+
+        private static readonly string ConfigFilePath = Path.Combine(MelonEnvironment.UserDataDirectory, "StackLimitPlus.txt");
 
         private static readonly Color _greenColor = new Color(0.2f, 0.8f, 0.3f, 1f);
         private static readonly Color _yellowColor = new Color(1f, 0.9f, 0.2f, 1f);
@@ -38,8 +43,11 @@ namespace SCH1_StackLimitPlus
         {
             if (sceneName == "Main")
             {
-                MelonLogger.Msg("Main scene loaded. Waiting for westville object...");
+                MelonLogger.Msg("Main scene loaded. Reloading user preference and resetting item update...");
                 _sceneLoaded = true;
+                _hasInitialized = false;
+                LoadStackLimit();
+                ItemDefinitionConstructorPatch.AllItems.Clear();
             }
         }
 
@@ -56,12 +64,41 @@ namespace SCH1_StackLimitPlus
                 if (_frameCounter >= CHECK_INTERVAL)
                 {
                     _frameCounter = 0;
-                    if (GameObject.Find("westville") != null)
+
+                    if (IsPlayerLoaded())
                     {
-                        InitializeAllItems();
+                        FindAndUpdateAllItems();
                         _hasInitialized = true;
+                        MelonLogger.Msg("Local player detected. Items updated with user preference: " + _globalStackLimit);
                     }
                 }
+            }
+        }
+
+        private bool IsPlayerLoaded()
+        {
+            try
+            {
+                var playerComponents = UnityEngine.Object.FindObjectsOfType(
+                    Il2CppType.Of<Il2CppScheduleOne.PlayerScripts.Player>());
+
+                if (playerComponents != null && playerComponents.Length > 0)
+                {
+                    return true;
+                }
+
+                var localPlayerObj = GameObject.Find("Player_Local");
+                if (localPlayerObj != null && localPlayerObj.activeInHierarchy)
+                {
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"Error checking if player is loaded: {ex.Message}");
+                return false;
             }
         }
 
@@ -92,7 +129,6 @@ namespace SCH1_StackLimitPlus
             });
 
             GUI.color = Color.white;
-
             DrawLine(new Rect(10, 35, _menuRect.width - 20, 1), Color.gray);
 
             GUI.Label(new Rect(10, 45, 150, 20), "Current Stack Limit:");
@@ -105,21 +141,25 @@ namespace SCH1_StackLimitPlus
             _globalStackLimit = (int)GUI.HorizontalSlider(new Rect(10, 70, _menuRect.width - 20, 20), _globalStackLimit, 1, 9999);
 
             GUI.Label(new Rect(10, 95, 70, 20), "Presets:");
-            if (GUI.Button(new Rect(70, 95, 35, 20), "10")) _globalStackLimit = 10;
-            if (GUI.Button(new Rect(110, 95, 35, 20), "40")) _globalStackLimit = 40;
-            if (GUI.Button(new Rect(150, 95, 35, 20), "99")) _globalStackLimit = 99;
-            if (GUI.Button(new Rect(190, 95, 45, 20), "999")) _globalStackLimit = 999;
+            if (GUI.Button(new Rect(70, 95, 35, 20), "10"))
+                UpdateStackLimit(10);
+            if (GUI.Button(new Rect(110, 95, 35, 20), "40"))
+                UpdateStackLimit(40);
+            if (GUI.Button(new Rect(150, 95, 35, 20), "99"))
+                UpdateStackLimit(99);
+            if (GUI.Button(new Rect(190, 95, 45, 20), "999"))
+                UpdateStackLimit(999);
 
             if (GUI.Button(new Rect(10, 125, 30, 30), "-"))
             {
                 if (_globalStackLimit > 1)
-                    _globalStackLimit--;
+                    UpdateStackLimit(_globalStackLimit - 1);
             }
 
             if (GUI.Button(new Rect(45, 125, 30, 30), "+"))
             {
                 if (_globalStackLimit < 9999)
-                    _globalStackLimit++;
+                    UpdateStackLimit(_globalStackLimit + 1);
             }
 
             GUI.backgroundColor = new Color(0.2f, 0.6f, 0.2f, 1f);
@@ -143,7 +183,6 @@ namespace SCH1_StackLimitPlus
                 new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 10 });
 
             GUI.color = Color.white;
-
             GUI.DragWindow();
         }
 
@@ -155,11 +194,6 @@ namespace SCH1_StackLimitPlus
             GUI.color = savedColor;
         }
 
-        private static void InitializeAllItems()
-        {
-            FindAndUpdateAllItems();
-        }
-
         private static void FindAndUpdateAllItems()
         {
             var resourceItems = Resources.FindObjectsOfTypeAll<ItemDefinition>();
@@ -169,7 +203,6 @@ namespace SCH1_StackLimitPlus
             foreach (var item in resourceItems)
             {
                 if (item == null) continue;
-
                 if (!ItemDefinitionConstructorPatch.AllItems.Contains(item))
                 {
                     ItemDefinitionConstructorPatch.AllItems.Add(item);
@@ -177,8 +210,6 @@ namespace SCH1_StackLimitPlus
                     UpdateStackLimit(item);
                 }
             }
-
-            MelonLogger.Msg($"Added {newItemsAdded} new items");
             UpdateAllDefinitions();
         }
 
@@ -188,7 +219,6 @@ namespace SCH1_StackLimitPlus
             foreach (var item in ItemDefinitionConstructorPatch.AllItems)
             {
                 if (item == null) continue;
-
                 try
                 {
                     UpdateStackLimit(item);
@@ -202,10 +232,15 @@ namespace SCH1_StackLimitPlus
             MelonLogger.Msg($"Updated {totalUpdated} items");
         }
 
+        private static void UpdateStackLimit(int newLimit)
+        {
+            _globalStackLimit = newLimit;
+            SaveStackLimit();
+        }
+
         private static void UpdateStackLimit(ItemDefinition item)
         {
             if (item == null) return;
-
             try
             {
                 item.StackLimit = _globalStackLimit;
@@ -213,6 +248,43 @@ namespace SCH1_StackLimitPlus
             catch (System.Exception ex)
             {
                 MelonLogger.Error($"Update failed: {ex.Message}");
+            }
+        }
+
+        private static void SaveStackLimit()
+        {
+            try
+            {
+                File.WriteAllText(ConfigFilePath, _globalStackLimit.ToString());
+                MelonLogger.Msg($"Stack limit saved to {ConfigFilePath}");
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Error($"Failed to save stack limit: {ex.Message}");
+            }
+        }
+
+        private static void LoadStackLimit()
+        {
+            try
+            {
+                if (File.Exists(ConfigFilePath))
+                {
+                    string content = File.ReadAllText(ConfigFilePath);
+                    if (int.TryParse(content, out int savedLimit))
+                    {
+                        _globalStackLimit = Mathf.Clamp(savedLimit, 1, 9999);
+                        MelonLogger.Msg($"Loaded stack limit from preference file: {_globalStackLimit}");
+                    }
+                }
+                else
+                {
+                    SaveStackLimit();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                MelonLogger.Error($"Failed to load stack limit: {ex.Message}");
             }
         }
 
@@ -226,7 +298,6 @@ namespace SCH1_StackLimitPlus
             static void OnItemDefinitionCreated(ItemDefinition __instance)
             {
                 if (__instance == null) return;
-
                 if (AllItems.Add(__instance))
                 {
                     try
