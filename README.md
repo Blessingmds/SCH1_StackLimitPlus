@@ -1,5 +1,7 @@
 🧱 StackLimitPlus — Dynamic Stack Limit CustomizerAn open-source mod for Schedule I
 
+**NOW available for Alternate version!**
+
 StackLimit Plus lets you customize item stack sizes directly in-game via a simple UI. Whether you're managing deliveries, dealers, storage, or your own pockets — this mod gives you the flexibility you’ve been missing.
 ✨ Features
 🎛 In-Game Menu — Press F6
