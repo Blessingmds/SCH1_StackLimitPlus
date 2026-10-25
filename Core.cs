@@ -1,430 +1,103 @@
-﻿using System.IO;
-using MelonLoader;
-using HarmonyLib;
-using Il2CppScheduleOne.ItemFramework;
-using UnityEngine;
+﻿using System;
 using System.Collections.Generic;
-using MelonLoader.Utils;
-using System;
+using System.IO;
 using Il2CppInterop.Runtime;
+using MelonLoader;
+using MelonLoader.Utils;
+using SCH1_StackLimitPlus.Game;
+using SCH1_StackLimitPlus.Settings;
+using UnityEngine;
 
 namespace SCH1_StackLimitPlus
 {
 public class Core : MelonMod
 {
-private static int _globalStackLimit = 40;
-private static bool _menuVisible = false;
-private static Rect _menuRect = new Rect(20, 20, 310, 170);
-private static bool _sceneLoaded = false;
-private static bool _hasInitialized = false;
-private static int _frameCounter = 0;
-private const int CHECK_INTERVAL = 60;
-public KeyCode menuHotKey = KeyCode.F6;
+    private const int CHECK_INTERVAL = 60;
 
-private static bool _settingsMenuVisible = false;
-private static Rect _settingsMenuRect = new Rect(40, 40, 300, 120);
-private static bool _waitingForHotkey = false;
-private static bool _limitDirty = false;
+    private static readonly HashSet<string> _loggedErrors = new();
+    private static SettingsStore _store = null!;
 
-private static readonly string ConfigFilePath = Path.Combine(MelonEnvironment.UserDataDirectory, "StackLimitPlus.txt");
+    private bool _sceneLoaded;
+    private bool _playerReady;
+    private int _frameCounter;
 
-private static readonly Color _greenColor = new Color(0.2f, 0.8f, 0.3f, 1f);
-private static readonly Color _yellowColor = new Color(1f, 0.9f, 0.2f, 1f);
+    public static ModSettings Settings { get; private set; } = ModSettings.CreateDefault();
+    public static ItemCatalog Catalog { get; } = new();
+    public static bool PlayerReady { get; private set; }
 
-public override void OnInitializeMelon()
-{
-    base.OnInitializeMelon();
-    MelonLogger.Msg("StackLimitPlus Loaded");
-    _instance = this;
-    LoadStackLimit();
-
-    var harmony = new HarmonyLib.Harmony("com.sch1.stacklimitplus");
-    harmony.PatchAll();
-}
-
-public override void OnSceneWasLoaded(int buildIndex, string sceneName)
-{
-    if (sceneName == "Main")
+    public override void OnInitializeMelon()
     {
-        MelonLogger.Msg("Main scene loaded. Reloading user preference and resetting item update...");
-        _sceneLoaded = true;
-        _hasInitialized = false;
-        LoadStackLimit();
-        ItemDefinitionConstructorPatch.AllItems.Clear();
-    }
-}
+        var dir = MelonEnvironment.UserDataDirectory;
+        _store = new SettingsStore(Path.Combine(dir, "StackLimitPlus.json"), Path.Combine(dir, "StackLimitPlus.txt"));
+        _store.Error += msg => MelonLogger.Error(msg);
+        Settings = _store.Load();
+        MelonLogger.Msg($"StackLimitPlus loaded. Global limit: {Settings.Global?.ToString() ?? "vanilla"}, hotkey: {Settings.Hotkey}");
 
-public override void OnUpdate()
-{
-    if (!_settingsMenuVisible && Input.GetKeyDown(menuHotKey))
-    {
-        _menuVisible = !_menuVisible;
+        new HarmonyLib.Harmony("com.sch1.stacklimitplus").PatchAll();
     }
 
-    if (_settingsMenuVisible && _waitingForHotkey)
+    public override void OnSceneWasLoaded(int buildIndex, string sceneName)
     {
-        foreach (KeyCode key in Enum.GetValues(typeof(KeyCode)))
-        {
-            // mouse buttons would grab the click on the Cancel button
-            if (key == KeyCode.None || (key >= KeyCode.Mouse0 && key <= KeyCode.Mouse6)) continue;
-            if (Input.GetKeyDown(key))
-            {
-                menuHotKey = key;
-                _waitingForHotkey = false;
-                SaveStackLimit();
-                MelonLogger.Msg($"Hotkey changed to {menuHotKey}");
-                break;
-            }
-        }
+        _sceneLoaded = sceneName == "Main";
+        _playerReady = false;
+        PlayerReady = false;
+        _frameCounter = 0;
     }
 
-    // save slider changes once the drag ends, not every frame
-    if (_limitDirty && Input.GetMouseButtonUp(0))
+    public override void OnUpdate()
     {
-        _limitDirty = false;
-        SaveStackLimit();
-    }
-
-    if (_sceneLoaded && !_hasInitialized)
-    {
-        _frameCounter++;
-        if (_frameCounter >= CHECK_INTERVAL)
+        if (_sceneLoaded && !_playerReady && ++_frameCounter >= CHECK_INTERVAL)
         {
             _frameCounter = 0;
-
             if (IsPlayerLoaded())
             {
-                FindAndUpdateAllItems();
-                _hasInitialized = true;
-                MelonLogger.Msg("Local player detected. Items updated with user preference: " + _globalStackLimit);
+                _playerReady = true;
+                PlayerReady = true;
+                Catalog.Rescan();
+                ApplyAll();
+                MelonLogger.Msg($"Local player detected. Applied limits to {Catalog.Items.Count} items.");
             }
         }
     }
-}
 
-private bool IsPlayerLoaded()
-{
-    try
+    // Call after any change to Settings: applies to the game and saves.
+    public static void SettingsChanged()
     {
-        var playerComponents = UnityEngine.Object.FindObjectsOfType(
-            Il2CppType.Of<Il2CppScheduleOne.PlayerScripts.Player>());
-
-        if (playerComponents != null && playerComponents.Length > 0)
-        {
-            return true;
-        }
-
-        var localPlayerObj = GameObject.Find("Player_Local");
-        if (localPlayerObj != null && localPlayerObj.activeInHierarchy)
-        {
-            return true;
-        }
-
-        return false;
-    }
-    catch (Exception ex)
-    {
-        MelonLogger.Error($"Error checking if player is loaded: {ex.Message}");
-        return false;
-    }
-}
-
-public override void OnGUI()
-{
-    if (_menuVisible && !_settingsMenuVisible)
-    {
-        GUI.backgroundColor = new Color(0.1f, 0.1f, 0.1f, 0.9f);
-        _menuRect = GUI.Window(0, _menuRect, (GUI.WindowFunction)DrawMenuWindow, "");
-    }
-    if (_settingsMenuVisible)
-    {
-        GUI.backgroundColor = new Color(0.12f, 0.12f, 0.12f, 0.95f);
-        _settingsMenuRect = GUI.Window(1, _settingsMenuRect, (GUI.WindowFunction)DrawSettingsWindow, "Settings");
-    }
-}
-
-private static void DrawMenuWindow(int windowId)
-{
-    GUI.color = _greenColor;
-    GUI.Label(new Rect(10, 10, 230, 25), "StackLimit", new GUIStyle(GUI.skin.label)
-    {
-        fontSize = 16,
-        fontStyle = FontStyle.Bold,
-        alignment = TextAnchor.UpperLeft
-    });
-
-    GUI.color = _yellowColor;
-    GUI.Label(new Rect(110, 10, 50, 25), "Plus", new GUIStyle(GUI.skin.label)
-    {
-        fontSize = 16,
-        fontStyle = FontStyle.Bold,
-        alignment = TextAnchor.UpperLeft
-    });
-
-    GUI.color = Color.white;
-    DrawLine(new Rect(10, 35, _menuRect.width - 20, 1), Color.gray);
-
-    GUI.Label(new Rect(10, 45, 150, 20), "Current Stack Limit:");
-    GUI.Label(new Rect(150, 45, 100, 20), _globalStackLimit.ToString(), new GUIStyle(GUI.skin.label)
-    {
-        fontStyle = FontStyle.Bold,
-        alignment = TextAnchor.UpperRight
-    });
-
-    int sliderValue = (int)GUI.HorizontalSlider(new Rect(10, 70, _menuRect.width - 20, 20), _globalStackLimit, 1, 9999);
-    if (sliderValue != _globalStackLimit)
-    {
-        _globalStackLimit = sliderValue;
-        _limitDirty = true;
+        ApplyAll();
+        _store.Save(Settings);
     }
 
-    GUI.Label(new Rect(10, 95, 70, 20), "Presets:");
-    if (GUI.Button(new Rect(70, 95, 35, 20), "20"))
-        UpdateStackLimit(20);
-    if (GUI.Button(new Rect(110, 95, 35, 20), "40"))
-        UpdateStackLimit(40);
-    if (GUI.Button(new Rect(150, 95, 35, 20), "99"))
-        UpdateStackLimit(99);
-    if (GUI.Button(new Rect(190, 95, 45, 20), "999"))
-        UpdateStackLimit(999);
-
-    if (GUI.Button(new Rect(10, 125, 30, 30), "-"))
+    public static void ReplaceSettings(ModSettings s)
     {
-        if (_globalStackLimit > 1)
-            UpdateStackLimit(_globalStackLimit - 1);
+        Settings = s;
+        SettingsChanged();
     }
 
-    if (GUI.Button(new Rect(45, 125, 30, 30), "+"))
+    private static void ApplyAll()
     {
-        if (_globalStackLimit < 9999)
-            UpdateStackLimit(_globalStackLimit + 1);
+        Catalog.Apply(Settings);
     }
 
-    GUI.backgroundColor = new Color(0.2f, 0.6f, 0.2f, 1f);
-    if (GUI.Button(new Rect(95, 125, 100, 30), "Update"))
+    public static void ErrorOnce(string message)
     {
-        FindAndUpdateAllItems();
-        MelonLogger.Msg($"Stack limit updated to {_globalStackLimit}");
+        if (_loggedErrors.Add(message)) MelonLogger.Error(message);
     }
 
-    GUI.backgroundColor = new Color(0.6f, 0.2f, 0.2f, 1f);
-    if (GUI.Button(new Rect(205, 125, 85, 30), "Close"))
+    private static bool IsPlayerLoaded()
     {
-        _menuVisible = false;
-    }
-
-    GUI.backgroundColor = new Color(0.2f, 0.2f, 0.6f, 1f);
-    if (GUI.Button(new Rect(_menuRect.width - 90, 10, 80, 25), "Settings"))
-    {
-        _settingsMenuVisible = true;
-    }
-
-    GUI.backgroundColor = Color.white;
-
-    GUI.color = new Color(0.7f, 0.7f, 0.7f, 0.7f);
-    GUI.Label(new Rect(0, _menuRect.height - 22, _menuRect.width, 20),
-        $"{Instance.menuHotKey} to toggle • {ItemDefinitionConstructorPatch.AllItems.Count} items",
-        new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 10 });
-
-    GUI.color = Color.white;
-    GUI.DragWindow();
-}
-
-private static void DrawSettingsWindow(int windowId)
-{
-    float y = 20;
-    GUI.Label(new Rect(10, y, 120, 25), "Menu Hotkey:", new GUIStyle(GUI.skin.label)
-    {
-        fontSize = 13,
-        fontStyle = FontStyle.Bold
-    });
-    string hotkeyLabel = _waitingForHotkey ? "Press any key..." : $"Current: {Instance.menuHotKey}";
-    GUI.Label(new Rect(130, y, 100, 25), hotkeyLabel, new GUIStyle(GUI.skin.label)
-    {
-        fontSize = 13,
-        fontStyle = FontStyle.Normal
-    });
-
-    if (!_waitingForHotkey)
-    {
-        if (GUI.Button(new Rect(230, y, 55, 25), "Change"))
-        {
-            _waitingForHotkey = true;
-        }
-    }
-    else
-    {
-        if (GUI.Button(new Rect(230, y, 55, 25), "Cancel"))
-        {
-            _waitingForHotkey = false;
-        }
-    }
-
-    y += 40;
-    if (GUI.Button(new Rect(10, y, 80, 30), "Back"))
-    {
-        _settingsMenuVisible = false;
-        _waitingForHotkey = false;
-    }
-
-    GUI.DragWindow();
-}
-
-private static void DrawLine(Rect rect, Color color)
-{
-    // GUI.DrawTexture is stripped in the IL2CPP build ("Method unstripping failed"), Box isn't
-    Color savedColor = GUI.color;
-    GUI.color = color;
-    GUI.Box(rect, "");
-    GUI.color = savedColor;
-}
-
-private static void FindAndUpdateAllItems()
-{
-    var resourceItems = Resources.FindObjectsOfTypeAll<ItemDefinition>();
-    MelonLogger.Msg($"Found {resourceItems.Length} items");
-
-    int newItemsAdded = 0;
-    foreach (var item in resourceItems)
-    {
-        if (item == null) continue;
-        if (!ItemDefinitionConstructorPatch.AllItems.Contains(item))
-        {
-            ItemDefinitionConstructorPatch.AllItems.Add(item);
-            newItemsAdded++;
-            UpdateStackLimit(item);
-        }
-    }
-    UpdateAllDefinitions();
-}
-
-public static void UpdateAllDefinitions()
-{
-    int totalUpdated = 0;
-    foreach (var item in ItemDefinitionConstructorPatch.AllItems)
-    {
-        if (item == null) continue;
         try
         {
-            UpdateStackLimit(item);
-            totalUpdated++;
+            var players = UnityEngine.Object.FindObjectsOfType(Il2CppType.Of<Il2CppScheduleOne.PlayerScripts.Player>());
+            if (players != null && players.Length > 0) return true;
+
+            var localPlayerObj = GameObject.Find("Player_Local");
+            return localPlayerObj != null && localPlayerObj.activeInHierarchy;
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
-            MelonLogger.Error($"Update failed: {ex.Message}");
+            ErrorOnce($"Error checking if player is loaded: {ex.Message}");
+            return false;
         }
     }
-    MelonLogger.Msg($"Updated {totalUpdated} items");
-}
-
-private static void UpdateStackLimit(int newLimit)
-{
-    _globalStackLimit = newLimit;
-    SaveStackLimit();
-}
-
-private static void UpdateStackLimit(ItemDefinition item)
-{
-    if (item == null) return;
-    try
-    {
-        item.StackLimit = _globalStackLimit;
-    }
-    catch (System.Exception ex)
-    {
-        MelonLogger.Error($"Update failed: {ex.Message}");
-    }
-}
-
-private static void SaveStackLimit()
-{
-    try
-    {
-        // Save both stack limit and hotkey
-        var lines = new List<string>
-            {
-                _globalStackLimit.ToString(),
-                $"Hotkey={Instance.menuHotKey}"
-            };
-        File.WriteAllLines(ConfigFilePath, lines);
-        MelonLogger.Msg($"Stack limit and hotkey saved to {ConfigFilePath}");
-    }
-    catch (System.Exception ex)
-    {
-        MelonLogger.Error($"Failed to save stack limit: {ex.Message}");
-    }
-}
-
-private static void LoadStackLimit()
-{
-    try
-    {
-        if (File.Exists(ConfigFilePath))
-        {
-            string[] lines = File.ReadAllLines(ConfigFilePath);
-            if (lines.Length > 0 && int.TryParse(lines[0], out int savedLimit))
-            {
-                _globalStackLimit = Mathf.Clamp(savedLimit, 1, 9999);
-                MelonLogger.Msg($"Loaded stack limit from preference file: {_globalStackLimit}");
-            }
-            foreach (var line in lines)
-            {
-                if (line.StartsWith("Hotkey=", StringComparison.OrdinalIgnoreCase))
-                {
-                    string keyStr = line.Substring("Hotkey=".Length);
-                    if (Enum.TryParse<KeyCode>(keyStr, out var key))
-                    {
-                        Instance.menuHotKey = key;
-                        MelonLogger.Msg($"Loaded hotkey from preference file: {Instance.menuHotKey}");
-                    }
-                }
-            }
-        }
-        else
-        {
-            SaveStackLimit();
-        }
-    }
-    catch (System.Exception ex)
-    {
-        MelonLogger.Error($"Failed to load stack limit: {ex.Message}");
-    }
-}
-
-// Helper to get the current instance for static context
-private static Core? _instance;
-public static Core Instance
-{
-    get
-    {
-        if (_instance == null)
-            _instance = MelonMod.RegisteredMelons.FirstOrDefault(m => m is Core) as Core;
-        return _instance!;
-    }
-}
-
-[HarmonyPatch(typeof(ItemDefinition))]
-public class ItemDefinitionConstructorPatch
-{
-    public static HashSet<ItemDefinition> AllItems = new HashSet<ItemDefinition>();
-
-    [HarmonyPostfix]
-    [HarmonyPatch(MethodType.Constructor)]
-    static void OnItemDefinitionCreated(ItemDefinition __instance)
-    {
-        if (__instance == null) return;
-        if (AllItems.Add(__instance))
-        {
-            try
-            {
-                __instance.StackLimit = Core._globalStackLimit;
-            }
-            catch (System.Exception ex)
-            {
-                MelonLogger.Error($"Init failed: {ex.Message}");
-            }
-        }
-    }
-}
 }
 }

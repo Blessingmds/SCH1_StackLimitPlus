@@ -2,5 +2,5 @@
 using MelonLoader;
 using SCH1_StackLimitPlus;
 
-[assembly: MelonInfo(typeof(Core), "Stack Limit Plus", "1.3.0", "BlessingMds")]
+[assembly: MelonInfo(typeof(Core), "Stack Limit Plus", "2.0.0", "BlessingMds")]
 [assembly: MelonGame("TVGS", "Schedule I")]
