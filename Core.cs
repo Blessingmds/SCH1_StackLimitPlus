@@ -24,22 +24,19 @@ public KeyCode menuHotKey = KeyCode.F6;
 private static bool _settingsMenuVisible = false;
 private static Rect _settingsMenuRect = new Rect(40, 40, 300, 120);
 private static bool _waitingForHotkey = false;
-private static KeyCode _pendingHotkey = KeyCode.None;
+private static bool _limitDirty = false;
 
 private static readonly string ConfigFilePath = Path.Combine(MelonEnvironment.UserDataDirectory, "StackLimitPlus.txt");
 
 private static readonly Color _greenColor = new Color(0.2f, 0.8f, 0.3f, 1f);
 private static readonly Color _yellowColor = new Color(1f, 0.9f, 0.2f, 1f);
-private static Texture2D? _whiteTexture;
 
 public override void OnInitializeMelon()
 {
     base.OnInitializeMelon();
     MelonLogger.Msg("StackLimitPlus Loaded");
-
-    _whiteTexture = new Texture2D(1, 1);
-    _whiteTexture.SetPixel(0, 0, Color.white);
-    _whiteTexture.Apply();
+    _instance = this;
+    LoadStackLimit();
 
     var harmony = new HarmonyLib.Harmony("com.sch1.stacklimitplus");
     harmony.PatchAll();
@@ -68,10 +65,10 @@ public override void OnUpdate()
     {
         foreach (KeyCode key in Enum.GetValues(typeof(KeyCode)))
         {
-            if (key == KeyCode.None) continue;
+            // mouse buttons would grab the click on the Cancel button
+            if (key == KeyCode.None || (key >= KeyCode.Mouse0 && key <= KeyCode.Mouse6)) continue;
             if (Input.GetKeyDown(key))
             {
-                _pendingHotkey = key;
                 menuHotKey = key;
                 _waitingForHotkey = false;
                 SaveStackLimit();
@@ -79,6 +76,13 @@ public override void OnUpdate()
                 break;
             }
         }
+    }
+
+    // save slider changes once the drag ends, not every frame
+    if (_limitDirty && Input.GetMouseButtonUp(0))
+    {
+        _limitDirty = false;
+        SaveStackLimit();
     }
 
     if (_sceneLoaded && !_hasInitialized)
@@ -167,7 +171,12 @@ private static void DrawMenuWindow(int windowId)
         alignment = TextAnchor.UpperRight
     });
 
-    _globalStackLimit = (int)GUI.HorizontalSlider(new Rect(10, 70, _menuRect.width - 20, 20), _globalStackLimit, 1, 9999);
+    int sliderValue = (int)GUI.HorizontalSlider(new Rect(10, 70, _menuRect.width - 20, 20), _globalStackLimit, 1, 9999);
+    if (sliderValue != _globalStackLimit)
+    {
+        _globalStackLimit = sliderValue;
+        _limitDirty = true;
+    }
 
     GUI.Label(new Rect(10, 95, 70, 20), "Presets:");
     if (GUI.Button(new Rect(70, 95, 35, 20), "20"))
@@ -214,7 +223,7 @@ private static void DrawMenuWindow(int windowId)
 
     GUI.color = new Color(0.7f, 0.7f, 0.7f, 0.7f);
     GUI.Label(new Rect(0, _menuRect.height - 22, _menuRect.width, 20),
-        $"F6 to toggle • {ItemDefinitionConstructorPatch.AllItems.Count} items",
+        $"{Instance.menuHotKey} to toggle • {ItemDefinitionConstructorPatch.AllItems.Count} items",
         new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 10 });
 
     GUI.color = Color.white;
@@ -241,7 +250,6 @@ private static void DrawSettingsWindow(int windowId)
         if (GUI.Button(new Rect(230, y, 55, 25), "Change"))
         {
             _waitingForHotkey = true;
-            _pendingHotkey = KeyCode.None;
         }
     }
     else
@@ -264,9 +272,10 @@ private static void DrawSettingsWindow(int windowId)
 
 private static void DrawLine(Rect rect, Color color)
 {
+    // GUI.DrawTexture is stripped in the IL2CPP build ("Method unstripping failed"), Box isn't
     Color savedColor = GUI.color;
     GUI.color = color;
-    GUI.DrawTexture(rect, _whiteTexture);
+    GUI.Box(rect, "");
     GUI.color = savedColor;
 }
 

@@ -18,6 +18,10 @@
     <Reference Include="Il2CppInterop.Runtime">
       <HintPath>..\..\SteamLibrary\steamapps\common\Schedule I\MelonLoader\net6\Il2CppInterop.Runtime.dll</HintPath>
     </Reference>
+    <!-- StackLimit lives on BaseItemDefinition in ScheduleOne.Core since the 2026 update -->
+    <Reference Include="Il2CppScheduleOne.Core">
+      <HintPath>..\..\SteamLibrary\steamapps\common\Schedule I\MelonLoader\Il2CppAssemblies\Il2CppScheduleOne.Core.dll</HintPath>
+    </Reference>
     <Reference Include="Il2Cppmscorlib">
       <HintPath>..\..\SteamLibrary\steamapps\common\Schedule I\MelonLoader\Il2CppAssemblies\Il2Cppmscorlib.dll</HintPath>
     </Reference>

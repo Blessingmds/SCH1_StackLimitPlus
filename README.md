@@ -7,7 +7,9 @@ StackLimit Plus lets you customize item stack sizes directly in-game via a simpl
 🎛 In-Game Menu — Press F6
 to instantly open the configuration menu.
 
-🔧 Custom Stack Sizes — Set unique limits for any item in the game.
+🔧 Custom Stack Size — Set one stack limit (1–9999) that applies to every item in the game.
+
+⌨️ Rebindable Hotkey — Change the menu key in Settings.
 
 💾 Fully Configurable — Save and tweak settings anytime.
 
