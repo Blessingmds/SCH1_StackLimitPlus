@@ -83,7 +83,7 @@ public class Core : MelonMod
         }
         if (!PlayerReady) return;
 
-        // picks up newly placed racks/mixers; no patch on their init (patching it crashed save loading)
+        // picks up newly placed racks/mixers without hooking their init during save loading
         _worldTimer += Time.unscaledDeltaTime;
         if (_worldTimer >= 10f)
         {
