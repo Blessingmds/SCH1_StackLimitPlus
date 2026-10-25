@@ -34,8 +34,10 @@ public class Core : MelonMod
     private static bool AddTabs(MenuView menu)
     {
         menu.AddTab(new UI.Tabs.ItemsTab());
-        foreach (var title in new[] { "Places", "Cash", "Stations", "Settings" })
-            menu.AddTab(new PlaceholderTab(title));
+        menu.AddTab(new UI.Tabs.PlacesTab());
+        menu.AddTab(new UI.Tabs.CashTab());
+        menu.AddTab(new UI.Tabs.StationsTab());
+        menu.AddTab(new UI.Tabs.SettingsTab());
         return true;
     }
 
@@ -82,6 +84,7 @@ public class Core : MelonMod
         if (HotkeyCapture != null)
         {
             CaptureHotkey();
+            return; // the captured key (e.g. Esc) must not also close the menu this frame
         }
         else if (Input.GetKeyDown(HotkeyCode) && !Il2CppScheduleOne.GameInput.IsTyping)
         {
