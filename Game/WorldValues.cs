@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Il2CppInterop.Runtime;
 using Il2CppScheduleOne.ItemFramework;
 using Il2CppScheduleOne.Money;
 using Il2CppScheduleOne.ObjectScripts;
@@ -16,19 +17,38 @@ namespace SCH1_StackLimitPlus.Game
         public static string MixerKey(string typeName) => "Mixer:" + typeName;
 
         static readonly Dictionary<string, float> _vanilla = new();
+        static readonly HashSet<string> _written = new();
         public static IReadOnlyDictionary<string, float> Vanilla => _vanilla;
 
-        public static void Apply(ModSettings s)
+        // Il2Cpp statics live in memory created by the class initializer; touching them before it ran crashes natively.
+        static void EnsureInit<T>() => IL2CPP.il2cpp_runtime_class_init(Il2CppClassPointerStore<T>.NativeClassPtr);
+
+        public static void CaptureStatics()
         {
+            EnsureInit<CashSlot>();
+            EnsureInit<CashInstance>();
+            EnsureInit<ATM>();
             Capture(CashPerSlot, CashSlot.MAX_CASH_PER_SLOT);
             Capture(MaxBalance, CashInstance.MAX_BALANCE);
             Capture(AtmWeeklyLimit, ATM.WeeklyDepositLimit);
-            CashSlot.MAX_CASH_PER_SLOT = s.CashPerSlot ?? _vanilla[CashPerSlot];
-            CashInstance.MAX_BALANCE = s.MaxBalance ?? _vanilla[MaxBalance];
-            ATM.WeeklyDepositLimit = s.AtmWeeklyLimit ?? _vanilla[AtmWeeklyLimit];
+        }
+
+        public static void Apply(ModSettings s)
+        {
+            CaptureStatics();
+            // only write what the user set, or what we changed before and must restore
+            if (ShouldWrite(CashPerSlot, s.CashPerSlot)) CashSlot.MAX_CASH_PER_SLOT = s.CashPerSlot ?? _vanilla[CashPerSlot];
+            if (ShouldWrite(MaxBalance, s.MaxBalance)) CashInstance.MAX_BALANCE = s.MaxBalance ?? _vanilla[MaxBalance];
+            if (ShouldWrite(AtmWeeklyLimit, s.AtmWeeklyLimit)) ATM.WeeklyDepositLimit = s.AtmWeeklyLimit ?? _vanilla[AtmWeeklyLimit];
 
             foreach (var rack in UnityEngine.Object.FindObjectsOfType<DryingRack>()) ApplyTo(rack, s);
             foreach (var mixer in UnityEngine.Object.FindObjectsOfType<MixingStation>()) ApplyTo(mixer, s);
+        }
+
+        static bool ShouldWrite(string key, float? value)
+        {
+            if (value.HasValue) { _written.Add(key); return true; }
+            return _written.Remove(key);
         }
 
         public static void ApplyTo(DryingRack rack, ModSettings s)

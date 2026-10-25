@@ -1,17 +1,23 @@
 using System;
 using HarmonyLib;
 using Il2CppScheduleOne.ItemFramework;
-using Il2CppScheduleOne.ObjectScripts;
+using MelonLoader;
 using SCH1_StackLimitPlus.Settings;
 
 namespace SCH1_StackLimitPlus.Game
 {
     // The definition's StackLimit is the max over all places; each slot is clamped to its own place here.
+#if SLOT_PATCH
     [HarmonyPatch(typeof(ItemSlot), nameof(ItemSlot.GetCapacityForItem))]
+#endif
     static class ItemSlotCapacityPatch
     {
+        static bool _logged;
+
         static void Postfix(ItemSlot __instance, ItemInstance item, ref int __result)
         {
+            // shortcut: first-call trace to locate a native crash on save load; remove once 2.0 is verified in game
+            if (!_logged) MelonLogger.Msg("[trace] slot capacity patch: first call");
             if (__result <= 0 || item == null) return;
             try
             {
@@ -20,32 +26,12 @@ namespace SCH1_StackLimitPlus.Game
                 var (place, guid) = PlaceResolver.Resolve(__instance);
                 int limit = LimitResolver.SlotLimit(Core.Settings, ItemCatalog.Info(def), place, guid);
                 __result = Math.Min(__result, LimitResolver.Capacity(limit, __instance.Quantity));
+                if (!_logged) { _logged = true; MelonLogger.Msg($"[trace] slot capacity patch ok: {place}"); }
             }
             catch (Exception ex)
             {
                 Core.ErrorOnce($"Slot capacity patch failed: {ex.Message}");
             }
-        }
-    }
-
-    // InitializeGridItem runs when a rack/mixer is placed or loaded, after its GUID is set.
-    [HarmonyPatch(typeof(DryingRack), nameof(DryingRack.InitializeGridItem))]
-    static class DryingRackInitPatch
-    {
-        static void Postfix(DryingRack __instance)
-        {
-            try { WorldValues.ApplyTo(__instance, Core.Settings); }
-            catch (Exception ex) { Core.ErrorOnce($"Drying rack patch failed: {ex.Message}"); }
-        }
-    }
-
-    [HarmonyPatch(typeof(MixingStation), nameof(MixingStation.InitializeGridItem))]
-    static class MixingStationInitPatch
-    {
-        static void Postfix(MixingStation __instance)
-        {
-            try { WorldValues.ApplyTo(__instance, Core.Settings); }
-            catch (Exception ex) { Core.ErrorOnce($"Mixing station patch failed: {ex.Message}"); }
         }
     }
 }

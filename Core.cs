@@ -21,6 +21,7 @@ public class Core : MelonMod
     private bool _sceneLoaded;
     private bool _playerReady;
     private int _frameCounter;
+    private float _worldTimer;
 
     public static ModSettings Settings { get; private set; } = ModSettings.CreateDefault();
     public static ItemCatalog Catalog { get; } = new();
@@ -51,11 +52,12 @@ public class Core : MelonMod
         Settings = _store.Load();
         MelonLogger.Msg($"StackLimitPlus loaded. Global limit: {Settings.Global?.ToString() ?? "vanilla"}, hotkey: {Settings.Hotkey}");
 
-        new HarmonyLib.Harmony("com.sch1.stacklimitplus").PatchAll();
+        // MelonLoader applies [HarmonyPatch] classes in this assembly by itself
     }
 
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
     {
+        MelonLogger.Msg($"[trace] scene loaded: {sceneName}");
         _sceneLoaded = sceneName == "Main";
         _playerReady = false;
         PlayerReady = false;
@@ -63,6 +65,7 @@ public class Core : MelonMod
         PlaceResolver.ClearCache();
         InputBlocker.Reset();
         Theme.ResetCaches();
+        MelonLogger.Msg("[trace] scene setup done");
     }
 
     public override void OnUpdate()
@@ -74,12 +77,25 @@ public class Core : MelonMod
             {
                 _playerReady = true;
                 PlayerReady = true;
+                MelonLogger.Msg("[trace] player found, scanning items");
                 Catalog.Rescan();
+                MelonLogger.Msg($"[trace] scanned {Catalog.Items.Count} items, applying item limits");
+                Catalog.Apply(Settings);
+                MelonLogger.Msg("[trace] item limits applied, applying world values");
                 ApplyAll();
                 MelonLogger.Msg($"Local player detected. Applied limits to {Catalog.Items.Count} items.");
             }
         }
         if (!PlayerReady) return;
+
+        // picks up newly placed racks/mixers; no patch on their init (patching it crashed save loading)
+        _worldTimer += Time.unscaledDeltaTime;
+        if (_worldTimer >= 10f)
+        {
+            _worldTimer = 0;
+            try { WorldValues.Apply(Settings); }
+            catch (Exception ex) { ErrorOnce($"Could not apply cash/rack/mixer values: {ex.Message}"); }
+        }
 
         if (HotkeyCapture != null)
         {
