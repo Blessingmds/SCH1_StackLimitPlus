@@ -34,6 +34,7 @@ public class Core : MelonMod
 
     private static bool AddTabs(MenuView menu)
     {
+        menu.AddTab(new UI.Tabs.ObjectTab());
         menu.AddTab(new UI.Tabs.ItemsTab());
         menu.AddTab(new UI.Tabs.PlacesTab());
         menu.AddTab(new UI.Tabs.CashTab());
@@ -76,7 +77,6 @@ public class Core : MelonMod
                 _playerReady = true;
                 PlayerReady = true;
                 Catalog.Rescan();
-                Catalog.Apply(Settings);
                 ApplyAll();
                 MelonLogger.Msg($"Local player detected. Applied limits to {Catalog.Items.Count} items.");
             }
@@ -99,11 +99,22 @@ public class Core : MelonMod
         }
         else if (Input.GetKeyDown(HotkeyCode) && !Il2CppScheduleOne.GameInput.IsTyping)
         {
-            if (!Overlay.IsOpen) Catalog.Rescan();
-            Overlay.Toggle();
+            if (Overlay.IsOpen) Overlay.Close();
+            else
+            {
+                Catalog.Rescan();
+                OpenTarget = LookTarget.Current;
+                Overlay.Open(OpenTarget != null ? "This object" : null);
+            }
         }
         Overlay.Tick();
+        LookTarget.Tick(Overlay.IsOpen);
+        _hint.Show(LookTarget.Current != null && !Overlay.IsOpen, Settings.Hotkey);
     }
+
+    private static readonly HintView _hint = new();
+    // the object the menu was opened on; drives the This object tab
+    public static Target? OpenTarget { get; private set; }
 
     private static void CaptureHotkey()
     {
