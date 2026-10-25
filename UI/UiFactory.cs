@@ -168,7 +168,6 @@ namespace SCH1_StackLimitPlus.UI
         static TMP_InputField Field(Transform parent, float width, string name)
         {
             var bg = Panel(parent, Theme.Raised, rounded: true, name: name);
-            var field = bg.gameObject.AddComponent<TMP_InputField>();
             var area = Node("TextArea", bg.transform);
             Stretch(area, 10, 2, 10, 2);
             area.gameObject.AddComponent<RectMask2D>();
@@ -177,6 +176,9 @@ namespace SCH1_StackLimitPlus.UI
             Stretch(placeholder.rectTransform);
             var text = Text(area, "", Theme.Body, Theme.Text, name: "Value");
             Stretch(text.rectTransform);
+
+            // added after its children exist: the field's OnEnable expects them
+            var field = bg.gameObject.AddComponent<TMP_InputField>();
 
             field.textViewport = area;
             field.textComponent = text;

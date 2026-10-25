@@ -67,6 +67,8 @@ namespace SCH1_StackLimitPlus.UI
                 scaler.referenceResolution = new Vector2(1920, 1080);
                 scaler.matchWidthOrHeight = 1f;
                 _canvas.AddComponent<GraphicRaycaster>();
+                if (UnityEngine.EventSystems.EventSystem.current == null)
+                    Core.ErrorOnce("No EventSystem in the scene: the menu can't receive clicks.");
 
                 var scrim = UiFactory.Panel(_canvas.transform, Theme.Scrim, name: "Scrim");
                 UiFactory.Stretch(scrim.rectTransform);
