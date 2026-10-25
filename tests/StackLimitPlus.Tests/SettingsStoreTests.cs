@@ -95,3 +95,26 @@ public class SettingsStoreTests : IDisposable
         Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
     }
 }
+
+public class WindowSizeTests
+{
+    [Fact]
+    public void ClampsWindowSize()
+    {
+        var s = ModSettings.CreateDefault();
+        s.WindowWidth = 100; s.WindowHeight = 99999;
+        SettingsStore.Normalize(s);
+        Assert.Equal(SettingsStore.MinWindowWidth, s.WindowWidth);
+        Assert.Equal(SettingsStore.MaxWindowSize, s.WindowHeight);
+    }
+
+    [Fact]
+    public void WindowSizeIsNotSynced()
+    {
+        var s = ModSettings.CreateDefault();
+        s.WindowWidth = 900; s.WindowHeight = 600;
+        var d = SyncCodec.Decode(SyncCodec.Encode(s, 8000, out _));
+        Assert.Null(d.WindowWidth);
+        Assert.Null(d.WindowHeight);
+    }
+}

@@ -20,7 +20,8 @@ namespace SCH1_StackLimitPlus.Settings
         {
             truncated = false;
             var copy = JsonSerializer.Deserialize<ModSettings>(JsonSerializer.Serialize(s, Compact), Compact)!;
-            copy.Hotkey = null!; // the hotkey is personal, never synced
+            copy.Hotkey = null!; // the hotkey and window size are personal, never synced
+            copy.WindowWidth = copy.WindowHeight = null;
 
             var data = Pack(copy);
             if (data.Length <= maxBytes) return data;

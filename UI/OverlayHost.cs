@@ -1,32 +1,30 @@
 using System;
 using SCH1_StackLimitPlus.Game;
+using SCH1_StackLimitPlus.Settings;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace SCH1_StackLimitPlus.UI
 {
     // The F6 window: a screen-space canvas holding a MenuView. Rebuilt after scene changes destroy it.
+    // Drag by the header, resize from the bottom-right grip; the size is remembered.
     public class OverlayHost
     {
-        const float Width = 780, Height = 520;
+        const float DefaultWidth = 780, DefaultHeight = 520, GripSize = 20;
 
         readonly Func<MenuView, bool> _addTabs;
         GameObject? _canvas;
         MenuView? _menu;
         RectTransform? _window;
+        RectTransform? _grip;
         Vector2 _dragOffset;
-        bool _dragging;
+        Vector2 _resizeStartMouse, _resizeStartSize;
+        bool _dragging, _resizing;
 
         public bool IsOpen => _canvas != null && _canvas.activeSelf;
         public MenuView? Menu => _menu;
 
         public OverlayHost(Func<MenuView, bool> addTabs) => _addTabs = addTabs;
-
-        public void Toggle(string? tab = null)
-        {
-            if (IsOpen && tab == null) Close();
-            else Open(tab);
-        }
 
         public void Open(string? tab)
         {
@@ -44,7 +42,7 @@ namespace SCH1_StackLimitPlus.UI
         {
             if (!IsOpen) return;
             _canvas!.SetActive(false);
-            _dragging = false;
+            _dragging = _resizing = false;
             Il2CppScheduleOne.GameInput.IsTyping = false;
             InputBlocker.Unblock();
         }
@@ -58,7 +56,7 @@ namespace SCH1_StackLimitPlus.UI
         {
             try
             {
-                _canvas = new GameObject("StackLimitPlusOverlay");
+                _canvas = new GameObject("StackLimitPlusOverlay") { layer = 5 };
                 var canvas = _canvas.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
                 canvas.sortingOrder = 500;
@@ -73,10 +71,15 @@ namespace SCH1_StackLimitPlus.UI
                 var scrim = UiFactory.Panel(_canvas.transform, Theme.Scrim, name: "Scrim");
                 UiFactory.Stretch(scrim.rectTransform);
 
+                // pivot top-left so resizing grows to the right and down, like a desktop window
                 _window = UiFactory.Node("Menu", _canvas.transform);
-                _window.sizeDelta = new Vector2(Width, Height);
+                _window.pivot = new Vector2(0, 1);
+                var size = new Vector2(Core.Settings.WindowWidth ?? DefaultWidth, Core.Settings.WindowHeight ?? DefaultHeight);
+                _window.sizeDelta = size;
+                _window.anchoredPosition = new Vector2(-size.x / 2f, size.y / 2f);
                 _menu = new MenuView(_window, phone: false, onClose: Close);
                 _addTabs(_menu);
+                _grip = BuildGrip(_window);
                 _canvas.SetActive(false);
             }
             catch (Exception ex)
@@ -88,7 +91,27 @@ namespace SCH1_StackLimitPlus.UI
             }
         }
 
-        // Called every frame from Core: Esc to close, drag by header.
+        // three short diagonal strokes in the corner
+        static RectTransform BuildGrip(RectTransform window)
+        {
+            var grip = UiFactory.Node("ResizeGrip", window);
+            grip.anchorMin = grip.anchorMax = grip.pivot = new Vector2(1, 0);
+            grip.sizeDelta = new Vector2(GripSize, GripSize);
+            grip.anchoredPosition = new Vector2(-2, 2);
+            for (int i = 0; i < 3; i++)
+            {
+                var bar = UiFactory.Panel(grip, Theme.TextFaint, name: "Stroke");
+                bar.raycastTarget = false;
+                var rt = bar.rectTransform;
+                rt.anchorMin = rt.anchorMax = new Vector2(1, 0);
+                rt.sizeDelta = new Vector2(4 + i * 5, 1.5f);
+                rt.anchoredPosition = new Vector2(-4 - i * 2.2f, 4 + i * 2.2f);
+                rt.localRotation = Quaternion.Euler(0, 0, 45);
+            }
+            return grip;
+        }
+
+        // Called every frame from Core: Esc to close, drag by header, resize by grip.
         public void Tick()
         {
             if (!IsOpen || _window == null || _menu == null) return;
@@ -97,21 +120,54 @@ namespace SCH1_StackLimitPlus.UI
             var canvas = _canvas!.GetComponent<Canvas>();
             float scale = canvas.scaleFactor <= 0 ? 1 : canvas.scaleFactor;
             Vector2 mouse = Input.mousePosition;
-            if (Input.GetMouseButtonDown(0) && RectTransformUtility.RectangleContainsScreenPoint(_menu.Header, mouse, null))
+            var screen = new Vector2(Screen.width, Screen.height) / scale;
+
+            if (Input.GetMouseButtonDown(0))
             {
-                _dragging = true;
-                _dragOffset = _window.anchoredPosition - mouse / scale;
+                if (_grip != null && RectTransformUtility.RectangleContainsScreenPoint(_grip, mouse, null))
+                {
+                    _resizing = true;
+                    _resizeStartMouse = mouse / scale;
+                    _resizeStartSize = _window.sizeDelta;
+                }
+                else if (RectTransformUtility.RectangleContainsScreenPoint(_menu.Header, mouse, null))
+                {
+                    _dragging = true;
+                    _dragOffset = _window.anchoredPosition - mouse / scale;
+                }
             }
-            if (!Input.GetMouseButton(0)) _dragging = false;
-            if (_dragging)
+            if (!Input.GetMouseButton(0))
             {
-                var half = new Vector2(Screen.width, Screen.height) / scale / 2f;
+                if (_resizing) SaveSize();
+                _dragging = _resizing = false;
+            }
+
+            var half = screen / 2f;
+            if (_resizing)
+            {
+                var delta = mouse / scale - _resizeStartMouse;
+                var top = _window.anchoredPosition;
+                float maxW = half.x - top.x, maxH = top.y + half.y;
+                _window.sizeDelta = new Vector2(
+                    Mathf.Clamp(_resizeStartSize.x + delta.x, SettingsStore.MinWindowWidth, Mathf.Max(SettingsStore.MinWindowWidth, maxW)),
+                    Mathf.Clamp(_resizeStartSize.y - delta.y, SettingsStore.MinWindowHeight, Mathf.Max(SettingsStore.MinWindowHeight, maxH)));
+            }
+            else if (_dragging)
+            {
                 var pos = mouse / scale + _dragOffset;
-                // keep at least the header on screen
-                pos.x = Mathf.Clamp(pos.x, -half.x + 120, half.x - 120);
-                pos.y = Mathf.Clamp(pos.y, -half.y + 40, half.y - Height / 2f + 10);
+                // keep the header reachable
+                pos.x = Mathf.Clamp(pos.x, -half.x - _window.sizeDelta.x + 120, half.x - 120);
+                pos.y = Mathf.Clamp(pos.y, -half.y + 50, half.y);
                 _window.anchoredPosition = pos;
             }
+        }
+
+        void SaveSize()
+        {
+            if (_window == null) return;
+            Core.Settings.WindowWidth = Mathf.RoundToInt(_window.sizeDelta.x);
+            Core.Settings.WindowHeight = Mathf.RoundToInt(_window.sizeDelta.y);
+            Core.SaveLocal();
         }
     }
 }

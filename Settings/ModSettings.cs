@@ -38,6 +38,9 @@ namespace SCH1_StackLimitPlus.Settings
         public Dictionary<string, int> MixerMaxMix { get; set; } = new();
         public Dictionary<string, ObjectSetting> Objects { get; set; } = new();
         public string Hotkey { get; set; } = "F6";
+        // F6 window size in reference pixels (1080p); personal, never synced
+        public int? WindowWidth { get; set; }
+        public int? WindowHeight { get; set; }
 
         public static Dictionary<Place, PlaceSetting> DefaultPlaces()
         {

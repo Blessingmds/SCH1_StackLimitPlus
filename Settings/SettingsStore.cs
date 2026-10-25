@@ -11,6 +11,7 @@ namespace SCH1_StackLimitPlus.Settings
     {
         public const int MaxStack = 9999;
         public const float MaxCash = 1_000_000f;
+        public const int MinWindowWidth = 640, MinWindowHeight = 420, MaxWindowSize = 3840;
 
         public static readonly JsonSerializerOptions Options = new()
         {
@@ -106,6 +107,8 @@ namespace SCH1_StackLimitPlus.Settings
             s.CashPerSlot = ClampCash(s.CashPerSlot);
             s.MaxBalance = ClampCash(s.MaxBalance);
             s.AtmWeeklyLimit = ClampCash(s.AtmWeeklyLimit);
+            if (s.WindowWidth.HasValue) s.WindowWidth = Math.Clamp(s.WindowWidth.Value, MinWindowWidth, MaxWindowSize);
+            if (s.WindowHeight.HasValue) s.WindowHeight = Math.Clamp(s.WindowHeight.Value, MinWindowHeight, MaxWindowSize);
             foreach (var p in s.Places.Values) p.Custom = Math.Clamp(p.Custom, 1, MaxStack);
             foreach (var o in s.Objects.Values.Where(o => o != null))
             {

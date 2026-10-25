@@ -63,14 +63,14 @@ namespace SCH1_StackLimitPlus.UI
                 MelonLogger.Msg("[phone] app icon template: " + Describe(_icon.transform, 0));
             }
 
-            foreach (var label in _icon.GetComponentsInChildren<Text>(true)) label.text = "StackLimit";
-            foreach (var label in _icon.GetComponentsInChildren<TextMeshProUGUI>(true)) label.text = "StackLimit";
+            // template: Shade, Outline, Mask/Image (the picture), Notifications/Text (badge), Label
+            var label = _icon.transform.Find("Label")?.GetComponent<Text>();
+            if (label != null) label.text = "StackLimit";
+            var picture = _icon.transform.Find("Mask/Image")?.GetComponent<Image>();
             var sprite = IconSprite();
-            // the deepest image with a sprite is the icon picture; the others are frame/mask
-            Image? picture = null;
-            foreach (var img in _icon.GetComponentsInChildren<Image>(true))
-                if (img.gameObject != _icon) picture = img;
             if (picture != null && sprite != null) picture.sprite = sprite;
+            _icon.transform.Find("Notifications")?.gameObject.SetActive(false);
+            if (label == null || picture == null) Core.ErrorOnce("Phone app icon template changed; icon may look wrong.");
             _icon.transform.SetAsLastSibling();
 
             var button = _icon.GetComponent<Button>() ?? _icon.GetComponentInChildren<Button>();
@@ -131,7 +131,10 @@ namespace SCH1_StackLimitPlus.UI
             var area = reference?.appContainer?.parent;
             if (area == null) { Core.ErrorOnce("Phone app area not found."); return; }
 
-            var root = UiFactory.Node("StackLimitPlusApp", area);
+            MelonLogger.Msg($"[phone] app area: {area.name} layer {area.gameObject.layer}, canvas {area.GetComponentInParent<Canvas>()?.renderMode}");
+
+            // opaque base: the phone's own apps cover the home screen completely
+            var root = UiFactory.Panel(area, new Color(0.15f, 0.15f, 0.15f, 1f), name: "StackLimitPlusApp").rectTransform;
             UiFactory.Stretch(root);
             _root = root.gameObject;
             _menu = new MenuView(root, phone: true, onClose: Close);

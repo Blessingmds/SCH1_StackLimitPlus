@@ -37,7 +37,6 @@ namespace SCH1_StackLimitPlus.UI.Tabs
             var note = UiFactory.Text(body, "Other stations have no capacity of their own. Set how much fits in their slots in Places. To change one station only, look at it and press "
                 + Core.Settings.Hotkey + ".", Theme.Small, Theme.TextMuted);
             note.enableWordWrapping = true;
-            UiFactory.Size(note, height: phone ? 58 : 44);
         }
 
         void Add(RectTransform body, bool phone, string vanillaKey, string label, string help, Func<ModSettings, int?> get, Action<ModSettings, int?> set)

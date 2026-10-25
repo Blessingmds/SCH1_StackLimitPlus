@@ -149,6 +149,12 @@ public class Core : MelonMod
         PhoneMenu.Refresh();
     }
 
+    // saves without re-applying (window size and other personal state); never while using the host's settings
+    public static void SaveLocal()
+    {
+        if (!IsClient) _store.Save(Settings);
+    }
+
     public static void ReplaceSettings(ModSettings s)
     {
         Settings = s;
@@ -159,6 +165,8 @@ public class Core : MelonMod
     public static void ApplyHostSettings(ModSettings host)
     {
         host.Hotkey = Settings.Hotkey;
+        host.WindowWidth = Settings.WindowWidth;
+        host.WindowHeight = Settings.WindowHeight;
         IsClient = true;
         Settings = host;
         SettingsChanged();

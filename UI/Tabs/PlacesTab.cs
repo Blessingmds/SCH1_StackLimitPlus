@@ -43,7 +43,6 @@ namespace SCH1_StackLimitPlus.UI.Tabs
             var intro = UiFactory.Text(body, "Item limits uses the Items tab. Vanilla keeps the game's own stack size. Custom uses one number for every item there.",
                 Theme.Small, Theme.TextMuted);
             intro.enableWordWrapping = true;
-            UiFactory.Size(intro, height: phone ? 46 : 34);
 
             var presets = UiFactory.SettingRow(body, "Preset", null, phone, out _);
             var labels = Array.ConvertAll(Presets, p => p.label);
@@ -68,7 +67,6 @@ namespace SCH1_StackLimitPlus.UI.Tabs
             var note = UiFactory.Text(body, "Stations on vanilla let workers spread batches over every slot, so nothing gets halved.",
                 Theme.Small, Theme.TextMuted);
             note.enableWordWrapping = true;
-            UiFactory.Size(note, height: 40);
         }
 
         public override void Refresh()

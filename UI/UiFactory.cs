@@ -13,7 +13,8 @@ namespace SCH1_StackLimitPlus.UI
         public static RectTransform Node(string name, Transform parent)
         {
             var go = new GameObject(name);
-            go.layer = 5; // UI
+            // same layer as the parent: the phone screen is drawn by a camera that only renders its own layer
+            go.layer = parent != null ? parent.gameObject.layer : 5;
             var rt = go.AddComponent<RectTransform>();
             rt.SetParent(parent, false);
             return rt;
@@ -281,8 +282,7 @@ namespace SCH1_StackLimitPlus.UI
             var text = detail == null ? label
                 : $"{label}\n<size={Theme.Small}><color=#{ColorUtility.ToHtmlStringRGB(Theme.TextMuted)}>{detail}</color></size>";
             var t = Text(parent, text, Theme.Body, Theme.Text, name: "Label");
-            t.overflowMode = TextOverflowModes.Overflow;
-            t.lineSpacing = -8;
+            t.overflowMode = TextOverflowModes.Ellipsis;
             var le = Size(t, height: height, flexWidth: 1);
             le.minWidth = 140;
             le.preferredWidth = 140;
