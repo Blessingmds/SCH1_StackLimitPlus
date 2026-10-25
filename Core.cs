@@ -42,6 +42,7 @@ public class Core : MelonMod
         _playerReady = false;
         PlayerReady = false;
         _frameCounter = 0;
+        PlaceResolver.ClearCache();
     }
 
     public override void OnUpdate()
