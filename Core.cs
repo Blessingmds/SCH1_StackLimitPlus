@@ -111,6 +111,7 @@ public class Core : MelonMod
         Overlay.Tick();
         LookTarget.Tick(Overlay.IsOpen);
         PhoneMenu.Tick();
+        LobbySync.Tick();
         _hint.Show(LookTarget.Current != null && !Overlay.IsOpen, Settings.Hotkey);
     }
 
@@ -139,7 +140,11 @@ public class Core : MelonMod
     public static void SettingsChanged()
     {
         ApplyAll();
-        if (!IsClient) _store.Save(Settings);
+        if (!IsClient)
+        {
+            _store.Save(Settings);
+            LobbySync.MarkDirty();
+        }
         Overlay.Refresh();
         PhoneMenu.Refresh();
     }
@@ -148,6 +153,24 @@ public class Core : MelonMod
     {
         Settings = s;
         SettingsChanged();
+    }
+
+    // Multiplayer client: use the host's settings in memory; our saved file is left alone.
+    public static void ApplyHostSettings(ModSettings host)
+    {
+        host.Hotkey = Settings.Hotkey;
+        IsClient = true;
+        Settings = host;
+        SettingsChanged();
+    }
+
+    public static void RestoreLocalSettings()
+    {
+        IsClient = false;
+        Settings = _store.Load();
+        ApplyAll();
+        Overlay.Refresh();
+        PhoneMenu.Refresh();
     }
 
     private static void ApplyAll()
