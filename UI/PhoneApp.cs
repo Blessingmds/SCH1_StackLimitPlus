@@ -1,0 +1,183 @@
+using System;
+using Il2CppScheduleOne.DevUtilities;
+using Il2CppScheduleOne.UI.Phone;
+using Il2CppScheduleOne.UI.Phone.Delivery;
+using Il2CppTMPro;
+using MelonLoader;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace SCH1_StackLimitPlus.UI
+{
+    // A "StackLimit" icon on the phone home screen that shows the menu inside the phone screen.
+    public class PhoneApp
+    {
+        readonly Func<MenuView, bool> _addTabs;
+        GameObject? _icon;
+        GameObject? _root;
+        MenuView? _menu;
+        HomeScreen? _home;
+        float _retry;
+        bool _loggedHierarchy;
+        bool _fallback;
+
+        public bool IsOpen => _root != null && _root.activeSelf;
+
+        public PhoneApp(Func<MenuView, bool> addTabs) => _addTabs = addTabs;
+
+        public void Tick()
+        {
+            try
+            {
+                if (_icon == null && (_retry -= Time.unscaledDeltaTime) <= 0)
+                {
+                    _retry = 2f;
+                    CreateIcon();
+                }
+                if (!IsOpen) return;
+                var phone = PlayerSingleton<Phone>.Instance;
+                if (phone == null || !phone.IsOpen) Close();
+                else if (Input.GetKeyDown(KeyCode.Escape) && !Il2CppScheduleOne.GameInput.IsTyping) Close();
+            }
+            catch (Exception ex)
+            {
+                Core.ErrorOnce($"Phone app failed: {ex.Message}");
+            }
+        }
+
+        public void Refresh()
+        {
+            if (IsOpen) _menu?.Refresh();
+        }
+
+        void CreateIcon()
+        {
+            _home = UnityEngine.Object.FindObjectOfType<HomeScreen>();
+            if (_home == null || _home.appIconPrefab == null || _home.appIconContainer == null) return;
+
+            _icon = UnityEngine.Object.Instantiate(_home.appIconPrefab, _home.appIconContainer);
+            _icon.name = "StackLimitPlusIcon";
+            if (!_loggedHierarchy)
+            {
+                _loggedHierarchy = true;
+                MelonLogger.Msg("[phone] app icon template: " + Describe(_icon.transform, 0));
+            }
+
+            foreach (var label in _icon.GetComponentsInChildren<Text>(true)) label.text = "StackLimit";
+            foreach (var label in _icon.GetComponentsInChildren<TextMeshProUGUI>(true)) label.text = "StackLimit";
+            var sprite = IconSprite();
+            // the deepest image with a sprite is the icon picture; the others are frame/mask
+            Image? picture = null;
+            foreach (var img in _icon.GetComponentsInChildren<Image>(true))
+                if (img.gameObject != _icon) picture = img;
+            if (picture != null && sprite != null) picture.sprite = sprite;
+            _icon.transform.SetAsLastSibling();
+
+            var button = _icon.GetComponent<Button>() ?? _icon.GetComponentInChildren<Button>();
+            if (button != null) UiFactory.Listen(button, Open);
+            else Core.ErrorOnce("Phone app icon has no button.");
+        }
+
+        static string Describe(Transform t, int depth)
+        {
+            var parts = t.name + "[" + string.Join(",", System.Linq.Enumerable.Select(t.GetComponents<Component>(), c => c.GetIl2CppType().Name)) + "]";
+            if (depth > 3 || t.childCount == 0) return parts;
+            var children = new string[t.childCount];
+            for (int i = 0; i < t.childCount; i++) children[i] = Describe(t.GetChild(i), depth + 1);
+            return parts + "{" + string.Join(" ", children) + "}";
+        }
+
+        void Open()
+        {
+            if (_fallback) { Core.Overlay.Open(null); return; }
+            try
+            {
+                if (_root == null) Build();
+                if (_root == null || _menu == null) { _fallback = true; Core.Overlay.Open(null); return; }
+                PlayerSingleton<Phone>.Instance?.SetIsHorizontal(true);
+                _home?.SetIsOpen(false);
+                _root.SetActive(true);
+                _root.transform.SetAsLastSibling();
+                Core.Catalog.Rescan();
+                _menu.Show(_menu.CurrentTitle ?? "Items");
+            }
+            catch (Exception ex)
+            {
+                Core.ErrorOnce($"Opening the phone app failed, using the F6 window instead: {ex.Message}");
+                _fallback = true;
+                Core.Overlay.Open(null);
+            }
+        }
+
+        public void Close()
+        {
+            if (!IsOpen) return;
+            _root!.SetActive(false);
+            Il2CppScheduleOne.GameInput.IsTyping = false;
+            try
+            {
+                PlayerSingleton<Phone>.Instance?.SetIsHorizontal(false);
+                _home?.SetIsOpen(true);
+            }
+            catch (Exception ex) { Core.ErrorOnce($"Closing the phone app failed: {ex.Message}"); }
+        }
+
+        void Build()
+        {
+            // apps live next to each other in the phone screen; borrow the Deliveries app's parent
+            DeliveryApp? reference = null;
+            foreach (var app in Resources.FindObjectsOfTypeAll<DeliveryApp>())
+                if (app.gameObject.scene.IsValid()) { reference = app; break; }
+            var area = reference?.appContainer?.parent;
+            if (area == null) { Core.ErrorOnce("Phone app area not found."); return; }
+
+            var root = UiFactory.Node("StackLimitPlusApp", area);
+            UiFactory.Stretch(root);
+            _root = root.gameObject;
+            _menu = new MenuView(root, phone: true, onClose: Close);
+            _addTabs(_menu);
+            _root.SetActive(false);
+        }
+
+        // 128px rounded square with three stacked crates, in the phone's flat icon style
+        static Sprite? _sprite;
+        static Sprite? IconSprite()
+        {
+            if (_sprite != null) return _sprite;
+            try
+            {
+                const int n = 128, r = 26;
+                var bg = new Color(0.36f, 0.42f, 0.45f);
+                var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        float dx = Mathf.Max(0, Mathf.Max(r - x - 0.5f, x + 0.5f - (n - r)));
+                        float dy = Mathf.Max(0, Mathf.Max(r - y - 0.5f, y + 0.5f - (n - r)));
+                        float a = (dx > 0 && dy > 0) ? Mathf.Clamp01(r - Mathf.Sqrt(dx * dx + dy * dy) + 0.5f) : 1f;
+                        var c = InCrate(x, y) ? Color.white : bg;
+                        c.a = a;
+                        tex.SetPixel(x, y, c);
+                    }
+                tex.Apply();
+                _sprite = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f);
+                UnityEngine.Object.DontDestroyOnLoad(tex);
+                UnityEngine.Object.DontDestroyOnLoad(_sprite);
+            }
+            catch (Exception ex) { Core.ErrorOnce($"Phone icon could not be drawn: {ex.Message}"); }
+            return _sprite;
+        }
+
+        // two crates side by side with one on top; each has a lid line cut out
+        static bool InCrate(int x, int y) =>
+            Crate(x, y, 26, 24) || Crate(x, y, 66, 24) || Crate(x, y, 46, 64);
+
+        static bool Crate(int x, int y, int left, int bottom)
+        {
+            const int w = 36, h = 36;
+            if (x < left || x >= left + w || y < bottom || y >= bottom + h) return false;
+            bool lidGap = y >= bottom + h - 12 && y < bottom + h - 8 && x > left + 3 && x < left + w - 4;
+            return !lidGap;
+        }
+    }
+}

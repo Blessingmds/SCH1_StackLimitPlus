@@ -29,6 +29,7 @@ public class Core : MelonMod
     // true when playing as a multiplayer client: settings come from the host and are read-only
     public static bool IsClient { get; set; }
     public static OverlayHost Overlay { get; } = new(AddTabs);
+    public static PhoneApp PhoneMenu { get; } = new(AddTabs);
     // set by the Settings tab while it waits for a new hotkey; receives the key instead of the menu
     public static Action<KeyCode>? HotkeyCapture { get; set; }
 
@@ -109,6 +110,7 @@ public class Core : MelonMod
         }
         Overlay.Tick();
         LookTarget.Tick(Overlay.IsOpen);
+        PhoneMenu.Tick();
         _hint.Show(LookTarget.Current != null && !Overlay.IsOpen, Settings.Hotkey);
     }
 
@@ -139,6 +141,7 @@ public class Core : MelonMod
         ApplyAll();
         if (!IsClient) _store.Save(Settings);
         Overlay.Refresh();
+        PhoneMenu.Refresh();
     }
 
     public static void ReplaceSettings(ModSettings s)
