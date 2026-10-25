@@ -13,19 +13,20 @@ namespace SCH1_StackLimitPlus.UI
             return c;
         }
 
-        public static readonly Color Scrim = Hex("#000000", 0.35f);
-        public static readonly Color Window = Hex("#141618", 0.98f);
-        public static readonly Color Sidebar = Hex("#0F1113", 1f);
-        public static readonly Color Raised = Hex("#1E2125");
-        public static readonly Color Hover = Hex("#272B30");
-        public static readonly Color Pressed = Hex("#30353B");
-        public static readonly Color Line = Hex("#2A2E33");
-        public static readonly Color Text = Hex("#EDEFF1");
-        public static readonly Color TextMuted = Hex("#8E959D");
-        public static readonly Color TextFaint = Hex("#5D646C");
-        public static readonly Color Accent = Hex("#6CCB7A");
-        public static readonly Color AccentText = Hex("#0E1A10");
-        public static readonly Color Danger = Hex("#E5675B");
+        // Neutral greys taken from the game's own HUD (hotbar slots, Phone/Character tabs): no hue, white for "active".
+        public static readonly Color Scrim = Hex("#000000", 0.2f);
+        public static readonly Color Window = Hex("#262626", 0.94f);
+        public static readonly Color Sidebar = Hex("#262626", 0f);
+        public static readonly Color Raised = Hex("#141414", 0.55f);
+        public static readonly Color Hover = Hex("#3A3A3A", 0.9f);
+        public static readonly Color Pressed = Hex("#474747", 0.9f);
+        public static readonly Color Line = Hex("#FFFFFF", 0.12f);
+        public static readonly Color Text = Hex("#F2F2F2");
+        public static readonly Color TextMuted = Hex("#A8A8A8");
+        public static readonly Color TextFaint = Hex("#767676");
+        public static readonly Color Accent = Hex("#FFFFFF");
+        public static readonly Color AccentText = Hex("#1A1A1A");
+        public static readonly Color Danger = Hex("#E0574B");
 
         public const float Title = 20f;
         public const float Body = 15f;
@@ -49,7 +50,7 @@ namespace SCH1_StackLimitPlus.UI
             }
         }
 
-        // 9-sliced rounded rectangle, radius 4px, drawn at runtime
+        // 9-sliced rectangle with a 2px corner, drawn at runtime
         public static Sprite? Rounded
         {
             get
@@ -57,7 +58,7 @@ namespace SCH1_StackLimitPlus.UI
                 if (_rounded != null) return _rounded;
                 try
                 {
-                    const int size = 16, r = 4;
+                    const int size = 16, r = 2;
                     var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
                     for (int y = 0; y < size; y++)
                         for (int x = 0; x < size; x++)

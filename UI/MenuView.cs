@@ -29,9 +29,9 @@ namespace SCH1_StackLimitPlus.UI
             _phone = phone;
             float headerH = phone ? 40 : 52, footerH = phone ? 26 : 32, sidebarW = phone ? 128 : 176;
 
-            var border = UiFactory.Panel(root, Theme.Line, rounded: true, name: "Border");
+            var border = UiFactory.Panel(root, Theme.Line, name: "Border");
             UiFactory.Stretch(border.rectTransform);
-            var window = UiFactory.Panel(border.transform, Theme.Window, rounded: true, name: "Window");
+            var window = UiFactory.Panel(border.transform, Theme.Window, name: "Window");
             UiFactory.Stretch(window.rectTransform, 1, 1, 1, 1);
 
             Header = UiFactory.Node("Header", window.transform);
@@ -43,7 +43,7 @@ namespace SCH1_StackLimitPlus.UI
             headerRow.childAlignment = TextAnchor.MiddleLeft;
             headerRow.childControlWidth = true; headerRow.childControlHeight = true;
             headerRow.childForceExpandWidth = false; headerRow.childForceExpandHeight = false;
-            var title = UiFactory.Text(Header, "StackLimit Plus", phone ? 17 : Theme.Title, Theme.Text, FontStyles.Bold);
+            var title = UiFactory.Text(Header, "StackLimit Plus", phone ? 17 : Theme.Title, Theme.Text);
             UiFactory.Size(title, width: title.preferredWidth + 2, height: 28);
             var version = UiFactory.Text(Header, Version, Theme.Small, Theme.TextFaint);
             UiFactory.Size(version, width: version.preferredWidth + 2, height: 28);
@@ -60,8 +60,11 @@ namespace SCH1_StackLimitPlus.UI
             _sidebar.anchorMin = Vector2.zero; _sidebar.anchorMax = new Vector2(0, 1);
             _sidebar.offsetMin = new Vector2(0, footerH); _sidebar.offsetMax = new Vector2(sidebarW, -headerH - 1);
             var tabs = _sidebar.gameObject.AddComponent<VerticalLayoutGroup>();
-            tabs.padding = new RectOffset(8, 8, 10, 10);
-            tabs.spacing = 2;
+            tabs.padding = new RectOffset((int)Theme.Pad - 4, 8, 12, 10);
+            tabs.spacing = 0;
+            var sideLine = UiFactory.Panel(window.transform, Theme.Line, name: "SidebarLine");
+            sideLine.rectTransform.anchorMin = Vector2.zero; sideLine.rectTransform.anchorMax = new Vector2(0, 1);
+            sideLine.rectTransform.offsetMin = new Vector2(sidebarW, footerH + 1); sideLine.rectTransform.offsetMax = new Vector2(sidebarW + 1, -headerH - 1);
             tabs.childControlWidth = true; tabs.childControlHeight = true;
             tabs.childForceExpandWidth = true; tabs.childForceExpandHeight = false;
 
@@ -89,31 +92,21 @@ namespace SCH1_StackLimitPlus.UI
         {
             if (_phone && !tab.PhoneVisible) return;
             int index = _tabs.Count;
-            var bg = UiFactory.Panel(_sidebar, Color.white, rounded: true, name: "Tab:" + tab.Title);
-            var b = bg.gameObject.AddComponent<Button>();
-            b.targetGraphic = bg;
-            b.navigation = new Navigation { mode = Navigation.Mode.None };
-            var label = UiFactory.Text(bg.transform, tab.Title, Theme.Body, Theme.TextMuted);
-            UiFactory.Stretch(label.rectTransform, 12, 0, 8, 0);
-            UiFactory.Size(bg, height: _phone ? 32 : 38);
-            UiFactory.Listen(b, () => Show(index));
+            var (b, setSelected) = UiFactory.TextTab(_sidebar, tab.Title, () => Show(index), _phone ? 34 : 40, _phone ? 15 : 16);
+            // sidebar tabs read left-aligned, underline under the word
+            var label = b.GetComponentInChildren<TextMeshProUGUI>();
+            label.alignment = TextAlignmentOptions.BottomLeft;
+            UiFactory.Stretch(label.rectTransform, 0, 0, 0, 8);
+            var line = b.transform.Find("Underline").GetComponent<RectTransform>();
+            line.anchorMin = line.anchorMax = line.pivot = new Vector2(0, 0);
+            line.anchoredPosition = new Vector2(0, 2);
             _tabs.Add((tab, b, null));
-            StyleTab(index, false);
+            _setSelected.Add(setSelected);
         }
 
-        void StyleTab(int i, bool selected)
-        {
-            var (_, b, _) = _tabs[i];
-            var cb = b.colors;
-            cb.normalColor = selected ? Theme.Raised : new Color(1, 1, 1, 0);
-            cb.highlightedColor = selected ? Theme.Raised : Theme.Raised;
-            cb.selectedColor = cb.normalColor;
-            cb.pressedColor = Theme.Hover;
-            b.colors = cb;
-            var label = b.GetComponentInChildren<TextMeshProUGUI>();
-            label.color = selected ? Theme.Text : Theme.TextMuted;
-            label.fontStyle = selected ? FontStyles.Bold : FontStyles.Normal;
-        }
+        readonly List<Action<bool>> _setSelected = new();
+
+        void StyleTab(int i, bool selected) => _setSelected[i](selected);
 
         public void Show(string title)
         {

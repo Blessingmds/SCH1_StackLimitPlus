@@ -7,9 +7,7 @@ using SCH1_StackLimitPlus.Settings;
 namespace SCH1_StackLimitPlus.Game
 {
     // The definition's StackLimit is the max over all places; each slot is clamped to its own place here.
-#if SLOT_PATCH
     [HarmonyPatch(typeof(ItemSlot), nameof(ItemSlot.GetCapacityForItem))]
-#endif
     static class ItemSlotCapacityPatch
     {
         static bool _logged;

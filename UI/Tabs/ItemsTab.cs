@@ -101,16 +101,10 @@ namespace SCH1_StackLimitPlus.UI.Tabs
                     UiFactory.Stretch(icon.rectTransform, 3, 3, 3, 3);
                 }
 
-                var text = UiFactory.Column(row.transform, 1, "Label");
-                UiFactory.Size(text, flexWidth: 1);
-                var name = UiFactory.Text(text.transform, item.Name, Theme.Body, Theme.Text);
-                UiFactory.Size(name, height: 20);
                 var detail = item.Info.Excluded
-                    ? $"{item.Info.Category} · has its own count, set individually"
+                    ? (_phone ? "own count" : $"{item.Info.Category} · has its own count, set individually")
                     : $"{item.Info.Category} · vanilla {item.Info.Vanilla}";
-                var sub = UiFactory.Text(text.transform, detail, Theme.Small, Theme.TextMuted);
-                UiFactory.Size(sub, height: 17);
-                sub.gameObject.SetActive(!_phone || !item.Info.Excluded);
+                UiFactory.LabelText(row.transform, item.Name, detail, 44);
 
                 var controls = UiFactory.Row(row.transform, 8, 34, "Controls");
                 var id = item.Info.Id;

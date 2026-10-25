@@ -57,7 +57,6 @@ public class Core : MelonMod
 
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
     {
-        MelonLogger.Msg($"[trace] scene loaded: {sceneName}");
         _sceneLoaded = sceneName == "Main";
         _playerReady = false;
         PlayerReady = false;
@@ -65,7 +64,6 @@ public class Core : MelonMod
         PlaceResolver.ClearCache();
         InputBlocker.Reset();
         Theme.ResetCaches();
-        MelonLogger.Msg("[trace] scene setup done");
     }
 
     public override void OnUpdate()
@@ -77,11 +75,8 @@ public class Core : MelonMod
             {
                 _playerReady = true;
                 PlayerReady = true;
-                MelonLogger.Msg("[trace] player found, scanning items");
                 Catalog.Rescan();
-                MelonLogger.Msg($"[trace] scanned {Catalog.Items.Count} items, applying item limits");
                 Catalog.Apply(Settings);
-                MelonLogger.Msg("[trace] item limits applied, applying world values");
                 ApplyAll();
                 MelonLogger.Msg($"Local player detected. Applied limits to {Catalog.Items.Count} items.");
             }

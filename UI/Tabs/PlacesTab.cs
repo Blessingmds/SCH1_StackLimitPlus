@@ -47,7 +47,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
 
             var presets = UiFactory.SettingRow(body, "Preset", null, phone, out _);
             var labels = Array.ConvertAll(Presets, p => p.label);
-            _selectPreset = UiFactory.Segmented(presets, labels, i => Commit(s => PlacePresets.Apply(s, Presets[i].preset)), phone ? 96 : 128);
+            _selectPreset = UiFactory.Segmented(presets, labels, i => Commit(s => PlacePresets.Apply(s, Presets[i].preset)));
 
             UiFactory.SectionTitle(body, "Inventories");
             foreach (var (place, name, help) in Rows)
@@ -56,7 +56,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
                 var controls = UiFactory.SettingRow(body, name, LimitResolver.IsStation(place) ? null : help, phone, out _);
                 var p = place;
                 var select = UiFactory.Segmented(controls, new[] { "Item limits", "Vanilla", "Custom" },
-                    i => Commit(s => s.Places[p].Mode = (PlaceMode)i), phone ? 72 : 92);
+                    i => Commit(s => s.Places[p].Mode = (PlaceMode)i));
                 var field = UiFactory.NumberField(controls, v => Commit(s =>
                 {
                     s.Places[p].Mode = PlaceMode.Custom;

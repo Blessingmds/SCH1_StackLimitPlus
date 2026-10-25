@@ -275,22 +275,58 @@ namespace SCH1_StackLimitPlus.UI
             return t;
         }
 
-        // Label (+ optional help line) on the left, controls on the right.
-        public static Transform SettingRow(Transform parent, string label, string? help, bool phone, out TextMeshProUGUI helpText)
+        // Label with an optional muted second line, as one text: TMP nested in a flexible column didn't draw in game.
+        public static TextMeshProUGUI LabelText(Transform parent, string label, string? detail, float height)
         {
-            var row = Row(parent, 12, help != null && !phone ? 52 : Theme.RowHeight, "Setting:" + label);
-            var left = Column(row.transform, 1, "Label");
-            left.childAlignment = TextAnchor.MiddleLeft;
-            Size(left, flexWidth: 1);
-            var l = Text(left.transform, label, Theme.Body, Theme.Text);
-            Size(l, height: 20);
-            helpText = Text(left.transform, help ?? "", Theme.Small, Theme.TextMuted);
-            Size(helpText, height: 17);
-            helpText.gameObject.SetActive(help != null && !phone);
+            var text = detail == null ? label
+                : $"{label}\n<size={Theme.Small}><color=#{ColorUtility.ToHtmlStringRGB(Theme.TextMuted)}>{detail}</color></size>";
+            var t = Text(parent, text, Theme.Body, Theme.Text, name: "Label");
+            t.overflowMode = TextOverflowModes.Overflow;
+            t.lineSpacing = -8;
+            var le = Size(t, height: height, flexWidth: 1);
+            le.minWidth = 140;
+            le.preferredWidth = 140;
+            return t;
+        }
+
+        // Label (+ optional help line) on the left, controls on the right.
+        public static Transform SettingRow(Transform parent, string label, string? help, bool phone, out TextMeshProUGUI labelText)
+        {
+            bool showHelp = help != null && !phone;
+            var row = Row(parent, 12, showHelp ? 52 : Theme.RowHeight, "Setting:" + label);
+            labelText = LabelText(row.transform, label, showHelp ? help : null, showHelp ? 44 : 22);
 
             var controls = Row(row.transform, 8, 34, "Controls");
             controls.childAlignment = TextAnchor.MiddleRight;
             return controls.transform;
+        }
+
+        // Text option with a white underline when selected, like the game's Phone/Character tabs.
+        public static (Button button, Action<bool> setSelected) TextTab(Transform parent, string label, Action onClick, float height = 34, float fontSize = Theme.Body)
+        {
+            var hit = Panel(parent, new Color(0, 0, 0, 0), name: "Option:" + label);
+            var b = hit.gameObject.AddComponent<Button>();
+            b.navigation = new Navigation { mode = Navigation.Mode.None };
+            var t = Text(hit.transform, label, fontSize, Theme.TextMuted, align: TextAlignmentOptions.Center);
+            // hover brightens the label; the selected colour itself is set below
+            b.targetGraphic = t;
+            b.colors = Colors(Color.white, new Color(1.35f, 1.35f, 1.35f), new Color(0.85f, 0.85f, 0.85f));
+            Stretch(t.rectTransform, 0, 0, 0, 3);
+            var line = Panel(hit.transform, Theme.Accent, name: "Underline");
+            line.raycastTarget = false;
+            var lrt = line.rectTransform;
+            lrt.anchorMin = new Vector2(0.5f, 0); lrt.anchorMax = new Vector2(0.5f, 0);
+            lrt.pivot = new Vector2(0.5f, 0);
+            lrt.sizeDelta = new Vector2(t.preferredWidth, 2);
+            Size(hit, width: t.preferredWidth + 20, height: height);
+            Listen(b, onClick);
+            Action<bool> setSelected = on =>
+            {
+                t.color = on ? Theme.Text : Theme.TextMuted;
+                line.gameObject.SetActive(on);
+            };
+            setSelected(false);
+            return (b, setSelected);
         }
 
         // On/off switch; returns a setter for the shown state.
@@ -319,24 +355,19 @@ namespace SCH1_StackLimitPlus.UI
             return show;
         }
 
-        // Joined option buttons; returns a setter that updates the highlighted option.
-        public static Action<int> Segmented(Transform parent, string[] options, Action<int> onPick, float optionWidth = 92)
+        // A row of underlined text options; returns a setter for the selected index (-1 = none).
+        public static Action<int> Segmented(Transform parent, string[] options, Action<int> onPick)
         {
-            var row = Row(parent, 2, 34, "Segmented");
-            var buttons = new Button[options.Length];
+            var row = Row(parent, 4, 34, "Options");
+            var setters = new Action<bool>[options.Length];
             Action<int> select = index =>
             {
-                for (int i = 0; i < buttons.Length; i++)
-                {
-                    bool on = i == index;
-                    buttons[i].colors = on ? Colors(Theme.Hover, Theme.Hover, Theme.Pressed) : Colors(Theme.Raised, Theme.Hover, Theme.Pressed);
-                    buttons[i].GetComponentInChildren<TextMeshProUGUI>().color = on ? Theme.Text : Theme.TextMuted;
-                }
+                for (int i = 0; i < setters.Length; i++) setters[i](i == index);
             };
             for (int i = 0; i < options.Length; i++)
             {
                 int index = i;
-                buttons[i] = Button(row.transform, options[i], () => { select(index); onPick(index); }, width: optionWidth);
+                setters[i] = TextTab(row.transform, options[i], () => { select(index); onPick(index); }).setSelected;
             }
             return select;
         }
