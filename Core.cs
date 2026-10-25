@@ -77,6 +77,8 @@ public class Core : MelonMod
     private static void ApplyAll()
     {
         Catalog.Apply(Settings);
+        try { WorldValues.Apply(Settings); }
+        catch (Exception ex) { ErrorOnce($"Could not apply cash/rack/mixer values: {ex.Message}"); }
     }
 
     public static void ErrorOnce(string message)
