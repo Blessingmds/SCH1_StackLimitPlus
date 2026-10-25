@@ -1,0 +1,280 @@
+using System;
+using Il2CppScheduleOne;
+using Il2CppTMPro;
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.UI;
+
+namespace SCH1_StackLimitPlus.UI
+{
+    // uGUI building blocks. IMGUI is not used: several of its methods are stripped in this game build.
+    public static class UiFactory
+    {
+        public static RectTransform Node(string name, Transform parent)
+        {
+            var go = new GameObject(name);
+            go.layer = 5; // UI
+            var rt = go.AddComponent<RectTransform>();
+            rt.SetParent(parent, false);
+            return rt;
+        }
+
+        public static void Stretch(RectTransform rt, float left = 0, float top = 0, float right = 0, float bottom = 0)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = new Vector2(left, bottom);
+            rt.offsetMax = new Vector2(-right, -top);
+        }
+
+        public static Image Panel(Transform parent, Color color, bool rounded = false, string name = "Panel")
+        {
+            var rt = Node(name, parent);
+            var img = rt.gameObject.AddComponent<Image>();
+            img.color = color;
+            if (rounded && Theme.Rounded != null)
+            {
+                img.sprite = Theme.Rounded;
+                img.type = Image.Type.Sliced;
+            }
+            return img;
+        }
+
+        public static LayoutElement Size(Component c, float width = -1, float height = -1, float flexWidth = -1)
+        {
+            var le = c.gameObject.GetComponent<LayoutElement>() ?? c.gameObject.AddComponent<LayoutElement>();
+            if (width >= 0) { le.preferredWidth = width; le.minWidth = width; }
+            if (height >= 0) { le.preferredHeight = height; le.minHeight = height; }
+            if (flexWidth >= 0) le.flexibleWidth = flexWidth;
+            return le;
+        }
+
+        public static HorizontalLayoutGroup Row(Transform parent, float spacing = 12, float height = Theme.RowHeight, string name = "Row")
+        {
+            var rt = Node(name, parent);
+            var h = rt.gameObject.AddComponent<HorizontalLayoutGroup>();
+            h.spacing = spacing;
+            h.childAlignment = TextAnchor.MiddleLeft;
+            h.childControlWidth = true; h.childControlHeight = true;
+            h.childForceExpandWidth = false; h.childForceExpandHeight = false;
+            Size(h, height: height);
+            return h;
+        }
+
+        public static VerticalLayoutGroup Column(Transform parent, float spacing = 0, string name = "Column")
+        {
+            var rt = Node(name, parent);
+            var v = rt.gameObject.AddComponent<VerticalLayoutGroup>();
+            v.spacing = spacing;
+            v.childControlWidth = true; v.childControlHeight = true;
+            v.childForceExpandWidth = true; v.childForceExpandHeight = false;
+            return v;
+        }
+
+        public static TextMeshProUGUI Text(Transform parent, string text, float size = Theme.Body, Color? color = null,
+            FontStyles style = FontStyles.Normal, TextAlignmentOptions align = TextAlignmentOptions.MidlineLeft, string name = "Text")
+        {
+            var rt = Node(name, parent);
+            var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
+            if (Theme.Font != null) t.font = Theme.Font;
+            t.text = text;
+            t.fontSize = size;
+            t.color = color ?? Theme.Text;
+            t.fontStyle = style;
+            t.alignment = align;
+            t.enableWordWrapping = false;
+            t.overflowMode = TextOverflowModes.Ellipsis;
+            t.raycastTarget = false;
+            return t;
+        }
+
+        static ColorBlock Colors(Color normal, Color hover, Color pressed)
+        {
+            var cb = ColorBlock.defaultColorBlock;
+            cb.normalColor = normal; cb.highlightedColor = hover; cb.pressedColor = pressed;
+            cb.selectedColor = normal; cb.disabledColor = new Color(normal.r, normal.g, normal.b, normal.a * 0.4f);
+            cb.colorMultiplier = 1f; cb.fadeDuration = 0.08f;
+            return cb;
+        }
+
+        public static void Listen(Button b, Action onClick) => b.onClick.AddListener((UnityAction)onClick);
+
+        public static Button Button(Transform parent, string label, Action onClick, bool primary = false, float width = -1, float height = 34, string name = "Button")
+        {
+            var img = Panel(parent, Color.white, rounded: true, name: name);
+            var b = img.gameObject.AddComponent<Button>();
+            b.targetGraphic = img;
+            b.colors = primary ? Colors(Theme.Accent, Color.Lerp(Theme.Accent, Color.white, 0.12f), Color.Lerp(Theme.Accent, Color.black, 0.15f))
+                               : Colors(Theme.Raised, Theme.Hover, Theme.Pressed);
+            b.navigation = new Navigation { mode = Navigation.Mode.None };
+            var t = Text(img.transform, label, Theme.Body, primary ? Theme.AccentText : Theme.Text, align: TextAlignmentOptions.Center);
+            Stretch(t.rectTransform, 12, 0, 12, 0);
+            Size(img, width: width >= 0 ? width : t.preferredWidth + 24, height: height);
+            Listen(b, onClick);
+            return b;
+        }
+
+        // Text-only button for low-emphasis actions (Reset, Clear)
+        public static Button LinkButton(Transform parent, string label, Action onClick, Color? color = null)
+        {
+            var t = Text(parent, label, Theme.Small, color ?? Theme.TextMuted, align: TextAlignmentOptions.Center, name: "Link");
+            t.raycastTarget = true;
+            var b = t.gameObject.AddComponent<Button>();
+            b.targetGraphic = t;
+            b.colors = Colors(Color.white, new Color(1.25f, 1.25f, 1.25f), new Color(0.8f, 0.8f, 0.8f));
+            b.navigation = new Navigation { mode = Navigation.Mode.None };
+            Size(t, width: t.preferredWidth + 8, height: 24);
+            Listen(b, onClick);
+            return b;
+        }
+
+        // The close cross drawn from two bars, not a glyph.
+        public static Button CloseButton(Transform parent, Action onClick)
+        {
+            var img = Panel(parent, Color.white, rounded: true, name: "Close");
+            var b = img.gameObject.AddComponent<Button>();
+            b.targetGraphic = img;
+            b.colors = Colors(new Color(1, 1, 1, 0), Theme.Hover, Theme.Pressed);
+            b.navigation = new Navigation { mode = Navigation.Mode.None };
+            foreach (var angle in new[] { 45f, -45f })
+            {
+                var bar = Panel(img.transform, Theme.TextMuted, name: "Bar");
+                bar.raycastTarget = false;
+                bar.rectTransform.sizeDelta = new Vector2(14, 1.6f);
+                bar.rectTransform.localRotation = Quaternion.Euler(0, 0, angle);
+            }
+            Size(img, width: 32, height: 32);
+            Listen(b, onClick);
+            return b;
+        }
+
+        public static Image Divider(Transform parent)
+        {
+            var d = Panel(parent, Theme.Line, name: "Divider");
+            d.raycastTarget = false;
+            Size(d, height: 1);
+            return d;
+        }
+
+        static TMP_InputField Field(Transform parent, float width, string name)
+        {
+            var bg = Panel(parent, Theme.Raised, rounded: true, name: name);
+            var field = bg.gameObject.AddComponent<TMP_InputField>();
+            var area = Node("TextArea", bg.transform);
+            Stretch(area, 10, 2, 10, 2);
+            area.gameObject.AddComponent<RectMask2D>();
+
+            var placeholder = Text(area, "", Theme.Body, Theme.TextFaint, name: "Placeholder");
+            Stretch(placeholder.rectTransform);
+            var text = Text(area, "", Theme.Body, Theme.Text, name: "Value");
+            Stretch(text.rectTransform);
+
+            field.textViewport = area;
+            field.textComponent = text;
+            field.placeholder = placeholder;
+            if (Theme.Font != null) field.fontAsset = Theme.Font;
+            field.pointSize = Theme.Body;
+            field.caretColor = Theme.Accent;
+            field.customCaretColor = true;
+            field.selectionColor = new Color(Theme.Accent.r, Theme.Accent.g, Theme.Accent.b, 0.35f);
+            field.caretWidth = 2;
+            field.navigation = new Navigation { mode = Navigation.Mode.None };
+            field.transition = Selectable.Transition.ColorTint;
+            field.targetGraphic = bg;
+            field.colors = Colors(Theme.Raised, Theme.Hover, Theme.Hover);
+            bg.color = Color.white;
+
+            // stops game hotkeys (hotbar numbers, inventory, our own hotkey) while typing
+            field.onSelect.AddListener((UnityAction<string>)new Action<string>(_ => GameInput.IsTyping = true));
+            field.onDeselect.AddListener((UnityAction<string>)new Action<string>(_ => GameInput.IsTyping = false));
+
+            Size(bg, width: width, height: 34);
+            return field;
+        }
+
+        // Empty text = unset (null). Commits on Enter or when the field loses focus.
+        public static TMP_InputField NumberField(Transform parent, Action<int?> onCommit, int min, int max, float width = 96)
+        {
+            var f = Field(parent, width, "Number");
+            f.contentType = TMP_InputField.ContentType.IntegerNumber;
+            f.characterLimit = max.ToString().Length;
+            ((TextMeshProUGUI)f.textComponent).alignment = TextAlignmentOptions.MidlineRight;
+            ((TextMeshProUGUI)f.placeholder).alignment = TextAlignmentOptions.MidlineRight;
+            f.onEndEdit.AddListener((UnityAction<string>)new Action<string>(value =>
+            {
+                GameInput.IsTyping = false;
+                if (string.IsNullOrWhiteSpace(value)) { onCommit(null); return; }
+                if (int.TryParse(value, out var n)) onCommit(Mathf.Clamp(n, min, max));
+                else onCommit(null);
+            }));
+            return f;
+        }
+
+        public static TMP_InputField SearchField(Transform parent, string placeholder, Action<string> onChange, float width = 240)
+        {
+            var f = Field(parent, width, "Search");
+            ((TextMeshProUGUI)f.placeholder).text = placeholder;
+            f.onValueChanged.AddListener((UnityAction<string>)new Action<string>(onChange));
+            return f;
+        }
+
+        // Shows `value` when set; otherwise empty with the inherited value as a faint placeholder.
+        public static void SetNumber(TMP_InputField f, float? value, float inherited)
+        {
+            f.SetTextWithoutNotify(value.HasValue ? Format(value.Value) : "");
+            ((TextMeshProUGUI)f.placeholder).text = Format(inherited);
+        }
+
+        public static string Format(float v) => Mathf.Approximately(v, Mathf.Round(v)) ? ((long)Mathf.Round(v)).ToString("N0") : v.ToString("N2");
+
+        public static ScrollRect ScrollList(Transform parent, out RectTransform content)
+        {
+            var root = Node("Scroll", parent);
+            var scroll = root.gameObject.AddComponent<ScrollRect>();
+            var viewport = Node("Viewport", root);
+            Stretch(viewport);
+            viewport.gameObject.AddComponent<RectMask2D>();
+            var hit = viewport.gameObject.AddComponent<Image>(); // receives wheel events between rows
+            hit.color = new Color(0, 0, 0, 0);
+
+            var col = Column(viewport, name: "Content");
+            content = col.GetComponent<RectTransform>();
+            content.anchorMin = new Vector2(0, 1);
+            content.anchorMax = new Vector2(1, 1);
+            content.pivot = new Vector2(0.5f, 1);
+            content.offsetMin = content.offsetMax = Vector2.zero;
+            var fitter = col.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            scroll.viewport = viewport;
+            scroll.content = content;
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 32;
+            scroll.inertia = false;
+            return scroll;
+        }
+
+        // Joined option buttons; returns a setter that updates the highlighted option.
+        public static Action<int> Segmented(Transform parent, string[] options, Action<int> onPick, float optionWidth = 92)
+        {
+            var row = Row(parent, 2, 34, "Segmented");
+            var buttons = new Button[options.Length];
+            Action<int> select = index =>
+            {
+                for (int i = 0; i < buttons.Length; i++)
+                {
+                    bool on = i == index;
+                    buttons[i].colors = on ? Colors(Theme.Hover, Theme.Hover, Theme.Pressed) : Colors(Theme.Raised, Theme.Hover, Theme.Pressed);
+                    buttons[i].GetComponentInChildren<TextMeshProUGUI>().color = on ? Theme.Text : Theme.TextMuted;
+                }
+            };
+            for (int i = 0; i < options.Length; i++)
+            {
+                int index = i;
+                buttons[i] = Button(row.transform, options[i], () => { select(index); onPick(index); }, width: optionWidth);
+            }
+            return select;
+        }
+    }
+}

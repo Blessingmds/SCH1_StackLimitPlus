@@ -6,6 +6,7 @@ using MelonLoader;
 using MelonLoader.Utils;
 using SCH1_StackLimitPlus.Game;
 using SCH1_StackLimitPlus.Settings;
+using SCH1_StackLimitPlus.UI;
 using UnityEngine;
 
 namespace SCH1_StackLimitPlus
@@ -24,6 +25,20 @@ public class Core : MelonMod
     public static ModSettings Settings { get; private set; } = ModSettings.CreateDefault();
     public static ItemCatalog Catalog { get; } = new();
     public static bool PlayerReady { get; private set; }
+    // true when playing as a multiplayer client: settings come from the host and are read-only
+    public static bool IsClient { get; set; }
+    public static OverlayHost Overlay { get; } = new(AddTabs);
+    // set by the Settings tab while it waits for a new hotkey; receives the key instead of the menu
+    public static Action<KeyCode>? HotkeyCapture { get; set; }
+
+    private static bool AddTabs(MenuView menu)
+    {
+        foreach (var title in new[] { "Items", "Places", "Cash", "Stations", "Settings" })
+            menu.AddTab(new PlaceholderTab(title));
+        return true;
+    }
+
+    public static KeyCode HotkeyCode => Enum.TryParse<KeyCode>(Settings.Hotkey, out var k) ? k : KeyCode.F6;
 
     public override void OnInitializeMelon()
     {
@@ -43,6 +58,8 @@ public class Core : MelonMod
         PlayerReady = false;
         _frameCounter = 0;
         PlaceResolver.ClearCache();
+        InputBlocker.Reset();
+        Theme.ResetCaches();
     }
 
     public override void OnUpdate()
@@ -57,6 +74,35 @@ public class Core : MelonMod
                 Catalog.Rescan();
                 ApplyAll();
                 MelonLogger.Msg($"Local player detected. Applied limits to {Catalog.Items.Count} items.");
+            }
+        }
+        if (!PlayerReady) return;
+
+        if (HotkeyCapture != null)
+        {
+            CaptureHotkey();
+        }
+        else if (Input.GetKeyDown(HotkeyCode) && !Il2CppScheduleOne.GameInput.IsTyping)
+        {
+            if (!Overlay.IsOpen) Catalog.Rescan();
+            Overlay.Toggle();
+        }
+        Overlay.Tick();
+    }
+
+    private static void CaptureHotkey()
+    {
+        if (!Input.anyKeyDown) return;
+        foreach (KeyCode key in Enum.GetValues(typeof(KeyCode)))
+        {
+            // mouse buttons would grab the click on the Cancel button
+            if (key == KeyCode.None || (key >= KeyCode.Mouse0 && key <= KeyCode.Mouse6)) continue;
+            if (Input.GetKeyDown(key))
+            {
+                var capture = HotkeyCapture;
+                HotkeyCapture = null;
+                capture?.Invoke(key);
+                return;
             }
         }
     }
