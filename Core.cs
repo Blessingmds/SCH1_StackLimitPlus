@@ -33,7 +33,8 @@ public class Core : MelonMod
 
     private static bool AddTabs(MenuView menu)
     {
-        foreach (var title in new[] { "Items", "Places", "Cash", "Stations", "Settings" })
+        menu.AddTab(new UI.Tabs.ItemsTab());
+        foreach (var title in new[] { "Places", "Cash", "Stations", "Settings" })
             menu.AddTab(new PlaceholderTab(title));
         return true;
     }
@@ -111,7 +112,8 @@ public class Core : MelonMod
     public static void SettingsChanged()
     {
         ApplyAll();
-        _store.Save(Settings);
+        if (!IsClient) _store.Save(Settings);
+        Overlay.Refresh();
     }
 
     public static void ReplaceSettings(ModSettings s)

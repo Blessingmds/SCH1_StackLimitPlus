@@ -15,7 +15,12 @@ namespace SCH1_StackLimitPlus.Settings
 
         public static int ItemLimit(ModSettings s, ItemInfo i)
         {
-            if (s.Items.TryGetValue(i.Id, out var item)) return item;
+            return s.Items.TryGetValue(i.Id, out var item) ? item : InheritedItemLimit(s, i);
+        }
+
+        // what the item gets from category/global/vanilla, ignoring its own override
+        public static int InheritedItemLimit(ModSettings s, ItemInfo i)
+        {
             if (i.Excluded && !s.IncludeUnstackable) return i.Vanilla;
             if (s.Categories.TryGetValue(i.Category, out var cat)) return cat;
             return s.Global ?? i.Vanilla;

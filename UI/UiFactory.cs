@@ -148,6 +148,15 @@ namespace SCH1_StackLimitPlus.UI
             return b;
         }
 
+        // Hides without collapsing its layout space, so neighbouring fields don't shift.
+        public static void SetShown(Component c, bool shown)
+        {
+            var g = c.gameObject.GetComponent<CanvasGroup>() ?? c.gameObject.AddComponent<CanvasGroup>();
+            g.alpha = shown ? 1 : 0;
+            g.interactable = shown;
+            g.blocksRaycasts = shown;
+        }
+
         public static Image Divider(Transform parent)
         {
             var d = Panel(parent, Theme.Line, name: "Divider");
@@ -253,6 +262,59 @@ namespace SCH1_StackLimitPlus.UI
             scroll.scrollSensitivity = 32;
             scroll.inertia = false;
             return scroll;
+        }
+
+        public static TextMeshProUGUI SectionTitle(Transform parent, string title, float topGap = 18)
+        {
+            var wrap = Column(parent, name: "Section");
+            wrap.padding = new RectOffset(0, 0, (int)topGap, 6);
+            var t = Text(wrap.transform, title, Theme.Body, Theme.Text, FontStyles.Bold);
+            Size(t, height: 22);
+            return t;
+        }
+
+        // Label (+ optional help line) on the left, controls on the right.
+        public static Transform SettingRow(Transform parent, string label, string? help, bool phone, out TextMeshProUGUI helpText)
+        {
+            var row = Row(parent, 12, help != null && !phone ? 52 : Theme.RowHeight, "Setting:" + label);
+            var left = Column(row.transform, 1, "Label");
+            left.childAlignment = TextAnchor.MiddleLeft;
+            Size(left, flexWidth: 1);
+            var l = Text(left.transform, label, Theme.Body, Theme.Text);
+            Size(l, height: 20);
+            helpText = Text(left.transform, help ?? "", Theme.Small, Theme.TextMuted);
+            Size(helpText, height: 17);
+            helpText.gameObject.SetActive(help != null && !phone);
+
+            var controls = Row(row.transform, 8, 34, "Controls");
+            controls.childAlignment = TextAnchor.MiddleRight;
+            return controls.transform;
+        }
+
+        // On/off switch; returns a setter for the shown state.
+        public static Action<bool> Switch(Transform parent, Action<bool> onChange)
+        {
+            var track = Panel(parent, Theme.Raised, rounded: true, name: "Switch");
+            Size(track, width: 40, height: 22);
+            var knob = Panel(track.transform, Theme.TextMuted, rounded: true, name: "Knob");
+            knob.raycastTarget = false;
+            knob.rectTransform.anchorMin = knob.rectTransform.anchorMax = new Vector2(0, 0.5f);
+            knob.rectTransform.sizeDelta = new Vector2(16, 16);
+            var b = track.gameObject.AddComponent<Button>();
+            b.targetGraphic = track;
+            b.transition = Selectable.Transition.None;
+            b.navigation = new Navigation { mode = Navigation.Mode.None };
+            bool state = false;
+            Action<bool> show = on =>
+            {
+                state = on;
+                track.color = on ? Theme.Accent : Theme.Raised;
+                knob.color = on ? Theme.AccentText : Theme.TextMuted;
+                knob.rectTransform.anchoredPosition = new Vector2(on ? 29 : 11, 0);
+            };
+            Listen(b, () => { show(!state); onChange(state); });
+            show(false);
+            return show;
         }
 
         // Joined option buttons; returns a setter that updates the highlighted option.

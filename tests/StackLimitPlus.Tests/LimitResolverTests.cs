@@ -103,3 +103,28 @@ public class LimitResolverTests
         Assert.Equal(6, LimitResolver.Capacity(10, 4));
     }
 }
+
+public class InheritedLimitTests
+{
+    [Fact]
+    public void InheritedIgnoresOwnItemOverride()
+    {
+        var kush = new ItemInfo("ogkush", "Product", 20, false);
+        var s = ModSettings.CreateDefault();
+        s.Items["ogkush"] = 200;
+        Assert.Equal(20, LimitResolver.InheritedItemLimit(s, kush));
+        s.Global = 60;
+        Assert.Equal(60, LimitResolver.InheritedItemLimit(s, kush));
+        s.Categories["Product"] = 80;
+        Assert.Equal(80, LimitResolver.InheritedItemLimit(s, kush));
+    }
+
+    [Fact]
+    public void InheritedForExcludedIsVanilla()
+    {
+        var mag = new ItemInfo("mag", "Equipment", 1, true);
+        var s = ModSettings.CreateDefault();
+        s.Global = 60;
+        Assert.Equal(1, LimitResolver.InheritedItemLimit(s, mag));
+    }
+}
