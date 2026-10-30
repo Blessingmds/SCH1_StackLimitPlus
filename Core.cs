@@ -22,7 +22,6 @@ public class Core : MelonMod
     private bool _playerReady;
     private int _frameCounter;
     private float _worldTimer;
-    private float _atmTimer;
 
     public static ModSettings Settings { get; private set; } = ModSettings.CreateDefault();
     public static ItemCatalog Catalog { get; } = new();
@@ -56,8 +55,8 @@ public class Core : MelonMod
         MelonLogger.Msg($"StackLimitPlus loaded. Global limit: {Settings.Global?.ToString() ?? "vanilla"}, hotkey: {Settings.Hotkey}");
 
         // MelonLoader applies [HarmonyPatch] classes in this assembly by itself
-        CashSlotCap.Install();
-        CashSlotCap.Apply(Settings);
+        WorldValues.Install();
+        WorldValues.ApplyConstants(Settings);
     }
 
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -99,15 +98,6 @@ public class Core : MelonMod
             if (anyCapacity)
             try { WorldValues.Apply(Settings); }
             catch (Exception ex) { ErrorOnce($"Could not apply cash/rack/mixer values: {ex.Message}"); }
-        }
-
-        // the ATM limit follows this week's deposit total, so it is re-checked every second
-        _atmTimer += Time.unscaledDeltaTime;
-        if (_atmTimer >= 1f)
-        {
-            _atmTimer = 0;
-            try { WorldValues.TickAtm(Settings); }
-            catch (Exception ex) { ErrorOnce($"Could not apply the ATM limit: {ex.Message}"); }
         }
 
         if (HotkeyCapture != null)
@@ -201,7 +191,6 @@ public class Core : MelonMod
     private static void ApplyAll()
     {
         Catalog.Apply(Settings);
-        CashSlotCap.Apply(Settings);
         try { WorldValues.Apply(Settings); }
         catch (Exception ex) { ErrorOnce($"Could not apply cash/rack/mixer values: {ex.Message}"); }
     }

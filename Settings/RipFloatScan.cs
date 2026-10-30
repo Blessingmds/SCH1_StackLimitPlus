@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace SCH1_StackLimitPlus.Settings
 {
-    // Pure x64 byte matching for CashSlotCap (kept here so the tests can compile it without game references).
+    // Pure x64 byte matching for CodeConstant (kept here so the tests can compile it without game references).
     public static class RipFloatScan
     {
         // SSE scalar ops that read a float: movss, addss, mulss, subss, minss, divss, maxss

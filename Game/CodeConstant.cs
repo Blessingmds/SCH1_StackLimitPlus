@@ -3,20 +3,27 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using Il2CppScheduleOne.UI.Items;
 using SCH1_StackLimitPlus.Settings;
 
 namespace SCH1_StackLimitPlus.Game
 {
-    // Cash per slot (CashSlot.MAX_CASH_PER_SLOT = 1000) is a C# const, so the game's compiled cash drag code reads
-    // a shared 1000f from read-only data. We repoint exactly those reads to our own float, which the setting writes.
-    public static unsafe class CashSlotCap
+    // A C# const (cash per slot, ATM weekly limit) is compiled into the game's code as a load of a shared float
+    // from read-only data. We repoint exactly those loads, in the named methods, to our own float that settings write.
+    public unsafe class CodeConstant
     {
-        public const float Vanilla = 1000f;
-        static readonly string[] Methods = { "StartDragCash", "EndCashDrag", "AddCashAmount", "SubtractCashAmount" };
-        static float* _value;
+        readonly string _label;
+        public float Vanilla { get; }
+        float* _value;
 
-        public static void Install()
+        public CodeConstant(string label, float vanilla) { _label = label; Vanilla = vanilla; }
+
+        public void Set(float? value)
+        {
+            if (_value != null) *_value = value ?? Vanilla;
+        }
+
+        // Every method must contain exactly one load of the vanilla value, or nothing is patched.
+        public void Install(Type il2cppType, params string[] methods)
         {
             try
             {
@@ -24,12 +31,12 @@ namespace SCH1_StackLimitPlus.Game
                 long lo = (long)module.BaseAddress, hi = lo + module.ModuleMemorySize;
 
                 // the next method of the class bounds each scan, so it can't run into unrelated code
-                var pointers = typeof(ItemUIManager).GetFields(BindingFlags.NonPublic | BindingFlags.Static)
+                var pointers = il2cppType.GetFields(BindingFlags.NonPublic | BindingFlags.Static)
                     .Where(f => f.Name.StartsWith("NativeMethodInfoPtr_"))
                     .ToDictionary(f => f.Name, f => *(long*)(IntPtr)f.GetValue(null)!);
                 var sorted = pointers.Values.Where(p => p != 0).OrderBy(p => p).ToArray();
 
-                var sites = Methods.Select(name =>
+                var sites = methods.Select(name =>
                 {
                     long start = pointers.FirstOrDefault(kv => kv.Key.StartsWith($"NativeMethodInfoPtr_{name}_")).Value;
                     if (start < lo || start >= hi) return (name, site: 0L);
@@ -43,14 +50,14 @@ namespace SCH1_StackLimitPlus.Game
                 var missing = sites.Where(s => s.site == 0).Select(s => s.name).ToArray();
                 if (missing.Length > 0)
                 {
-                    Core.ErrorOnce($"Cash per slot is unavailable in this game version (no match in {string.Join(", ", missing)}).");
+                    Core.ErrorOnce($"{_label} is unavailable in this game version (no match in {string.Join(", ", missing)}).");
                     return;
                 }
 
                 var value = (float*)AllocNear(lo);
                 if (value == null || sites.Any(s => !FitsInt32((long)value - (s.site + 4))))
                 {
-                    Core.ErrorOnce("Cash per slot is unavailable: no memory near the game code.");
+                    Core.ErrorOnce($"{_label} is unavailable: no memory near the game code.");
                     return;
                 }
                 *value = Vanilla;
@@ -59,13 +66,8 @@ namespace SCH1_StackLimitPlus.Game
             }
             catch (Exception ex)
             {
-                Core.ErrorOnce($"Cash per slot is unavailable: {ex.Message}");
+                Core.ErrorOnce($"{_label} is unavailable: {ex.Message}");
             }
-        }
-
-        public static void Apply(ModSettings s)
-        {
-            if (_value != null) *_value = s.CashPerSlot ?? Vanilla;
         }
 
         static bool FitsInt32(long v) => v >= int.MinValue && v <= int.MaxValue;
