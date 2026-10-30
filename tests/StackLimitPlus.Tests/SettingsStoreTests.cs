@@ -27,7 +27,7 @@ public class SettingsStoreTests : IDisposable
         var s = ModSettings.CreateDefault();
         s.Global = 250; s.Categories["Product"] = 40; s.Items["baggie"] = 999; s.IncludeUnstackable = true;
         s.Places[Place.Deliveries] = new PlaceSetting { Mode = PlaceMode.Custom, Custom = 500 };
-        s.CashPerSlot = 5000; s.MaxBalance = 20000; s.AtmWeeklyLimit = 50000; s.DryingRackCapacity = 40;
+        s.AtmWeeklyLimit = 50000; s.DryingRackCapacity = 40;
         s.MixerMaxMix["MixingStationMk2"] = 30;
         s.Objects["abc"] = new ObjectSetting { SlotMode = ObjectSlotMode.Custom, SlotCustom = 60, Capacity = 35 };
         s.Hotkey = "F8";
@@ -71,11 +71,11 @@ public class SettingsStoreTests : IDisposable
     [Fact]
     public void ClampsOutOfRange()
     {
-        File.WriteAllText(Json, "{\"Global\":0,\"Items\":{\"baggie\":99999},\"CashPerSlot\":-5,\"DryingRackCapacity\":0}");
+        File.WriteAllText(Json, "{\"Global\":0,\"Items\":{\"baggie\":99999},\"AtmWeeklyLimit\":-5,\"DryingRackCapacity\":0}");
         var s = NewStore().Load();
         Assert.Equal(1, s.Global);
         Assert.Equal(9999, s.Items["baggie"]);
-        Assert.Equal(1, s.CashPerSlot);
+        Assert.Equal(1, s.AtmWeeklyLimit);
         Assert.Equal(1, s.DryingRackCapacity);
     }
 

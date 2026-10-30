@@ -22,6 +22,7 @@ public class Core : MelonMod
     private bool _playerReady;
     private int _frameCounter;
     private float _worldTimer;
+    private float _atmTimer;
 
     public static ModSettings Settings { get; private set; } = ModSettings.CreateDefault();
     public static ItemCatalog Catalog { get; } = new();
@@ -96,6 +97,15 @@ public class Core : MelonMod
             if (anyCapacity)
             try { WorldValues.Apply(Settings); }
             catch (Exception ex) { ErrorOnce($"Could not apply cash/rack/mixer values: {ex.Message}"); }
+        }
+
+        // the ATM limit follows this week's deposit total, so it is re-checked every second
+        _atmTimer += Time.unscaledDeltaTime;
+        if (_atmTimer >= 1f)
+        {
+            _atmTimer = 0;
+            try { WorldValues.TickAtm(Settings); }
+            catch (Exception ex) { ErrorOnce($"Could not apply the ATM limit: {ex.Message}"); }
         }
 
         if (HotkeyCapture != null)
