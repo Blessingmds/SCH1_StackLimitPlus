@@ -27,7 +27,8 @@ namespace SCH1_StackLimitPlus.UI
         {
             Root = root;
             _phone = phone;
-            float headerH = phone ? 40 : 52, footerH = phone ? 26 : 32, sidebarW = phone ? 128 : 176;
+            // phone: tabs in a strip under the header (mobile layout), no footer; desktop: sidebar + footer
+            float headerH = phone ? 36 : 52, footerH = phone ? 0 : 32, sidebarW = phone ? 0 : 176, tabStripH = phone ? 34 : 0;
 
             var border = UiFactory.Panel(root, Theme.Line, name: "Border");
             UiFactory.Stretch(border.rectTransform);
@@ -55,22 +56,38 @@ namespace SCH1_StackLimitPlus.UI
             headerLine.rectTransform.anchorMin = new Vector2(0, 1); headerLine.rectTransform.anchorMax = new Vector2(1, 1);
             headerLine.rectTransform.offsetMin = new Vector2(0, -headerH - 1); headerLine.rectTransform.offsetMax = new Vector2(0, -headerH);
 
-            var sidebarBg = UiFactory.Panel(window.transform, Theme.Sidebar, name: "Sidebar");
+            var sidebarBg = UiFactory.Panel(window.transform, Theme.Sidebar, name: phone ? "TabStrip" : "Sidebar");
             _sidebar = sidebarBg.rectTransform;
-            _sidebar.anchorMin = Vector2.zero; _sidebar.anchorMax = new Vector2(0, 1);
-            _sidebar.offsetMin = new Vector2(0, footerH); _sidebar.offsetMax = new Vector2(sidebarW, -headerH - 1);
-            var tabs = _sidebar.gameObject.AddComponent<VerticalLayoutGroup>();
-            tabs.padding = new RectOffset((int)Theme.Pad - 4, 8, 12, 10);
-            tabs.spacing = 0;
-            var sideLine = UiFactory.Panel(window.transform, Theme.Line, name: "SidebarLine");
-            sideLine.rectTransform.anchorMin = Vector2.zero; sideLine.rectTransform.anchorMax = new Vector2(0, 1);
-            sideLine.rectTransform.offsetMin = new Vector2(sidebarW, footerH + 1); sideLine.rectTransform.offsetMax = new Vector2(sidebarW + 1, -headerH - 1);
-            tabs.childControlWidth = true; tabs.childControlHeight = true;
-            tabs.childForceExpandWidth = true; tabs.childForceExpandHeight = false;
+            if (phone)
+            {
+                _sidebar.anchorMin = new Vector2(0, 1); _sidebar.anchorMax = new Vector2(1, 1);
+                _sidebar.offsetMin = new Vector2(0, -headerH - 1 - tabStripH); _sidebar.offsetMax = new Vector2(0, -headerH - 1);
+                var strip = _sidebar.gameObject.AddComponent<HorizontalLayoutGroup>();
+                strip.padding = new RectOffset(8, 8, 0, 0);
+                strip.childAlignment = TextAnchor.MiddleLeft;
+                strip.childControlWidth = true; strip.childControlHeight = true;
+                strip.childForceExpandWidth = false; strip.childForceExpandHeight = false;
+                var stripLine = UiFactory.Panel(window.transform, Theme.Line, name: "TabStripLine");
+                stripLine.rectTransform.anchorMin = new Vector2(0, 1); stripLine.rectTransform.anchorMax = new Vector2(1, 1);
+                stripLine.rectTransform.offsetMin = new Vector2(0, -headerH - 2 - tabStripH); stripLine.rectTransform.offsetMax = new Vector2(0, -headerH - 1 - tabStripH);
+            }
+            else
+            {
+                _sidebar.anchorMin = Vector2.zero; _sidebar.anchorMax = new Vector2(0, 1);
+                _sidebar.offsetMin = new Vector2(0, footerH); _sidebar.offsetMax = new Vector2(sidebarW, -headerH - 1);
+                var tabs = _sidebar.gameObject.AddComponent<VerticalLayoutGroup>();
+                tabs.padding = new RectOffset((int)Theme.Pad - 4, 8, 12, 10);
+                tabs.spacing = 0;
+                tabs.childControlWidth = true; tabs.childControlHeight = true;
+                tabs.childForceExpandWidth = true; tabs.childForceExpandHeight = false;
+                var sideLine = UiFactory.Panel(window.transform, Theme.Line, name: "SidebarLine");
+                sideLine.rectTransform.anchorMin = Vector2.zero; sideLine.rectTransform.anchorMax = new Vector2(0, 1);
+                sideLine.rectTransform.offsetMin = new Vector2(sidebarW, footerH + 1); sideLine.rectTransform.offsetMax = new Vector2(sidebarW + 1, -headerH - 1);
+            }
 
             _contentArea = UiFactory.Node("Content", window.transform);
             _contentArea.anchorMin = Vector2.zero; _contentArea.anchorMax = Vector2.one;
-            _contentArea.offsetMin = new Vector2(sidebarW, footerH); _contentArea.offsetMax = new Vector2(0, -headerH - 1);
+            _contentArea.offsetMin = new Vector2(sidebarW, footerH); _contentArea.offsetMax = new Vector2(0, -headerH - 2 - tabStripH);
 
             var footerLine = UiFactory.Panel(window.transform, Theme.Line, name: "FooterLine");
             footerLine.rectTransform.anchorMin = Vector2.zero; footerLine.rectTransform.anchorMax = new Vector2(1, 0);
@@ -79,6 +96,7 @@ namespace SCH1_StackLimitPlus.UI
             Anchor(_footerLeft.rectTransform, footerH, TextAlignmentOptions.MidlineLeft, _footerLeft);
             _footerRight = UiFactory.Text(window.transform, "", Theme.Small, Theme.Accent, name: "FooterRight");
             Anchor(_footerRight.rectTransform, footerH, TextAlignmentOptions.MidlineRight, _footerRight);
+            foreach (var go in new[] { footerLine.gameObject, _footerLeft.gameObject, _footerRight.gameObject }) go.SetActive(!phone);
         }
 
         static void Anchor(RectTransform rt, float h, TextAlignmentOptions align, TextMeshProUGUI t)
@@ -93,13 +111,16 @@ namespace SCH1_StackLimitPlus.UI
             if (_phone && !tab.PhoneVisible) return;
             int index = _tabs.Count;
             var (b, setSelected) = UiFactory.TextTab(_sidebar, tab.Title, () => Show(index), _phone ? 34 : 40, _phone ? 15 : 16);
-            // sidebar tabs read left-aligned, underline under the word
-            var label = b.GetComponentInChildren<TextMeshProUGUI>();
-            label.alignment = TextAlignmentOptions.BottomLeft;
-            UiFactory.Stretch(label.rectTransform, 0, 0, 0, 8);
-            var line = b.transform.Find("Underline").GetComponent<RectTransform>();
-            line.anchorMin = line.anchorMax = line.pivot = new Vector2(0, 0);
-            line.anchoredPosition = new Vector2(0, 2);
+            if (!_phone)
+            {
+                // sidebar tabs read left-aligned, underline under the word
+                var label = b.GetComponentInChildren<TextMeshProUGUI>();
+                label.alignment = TextAlignmentOptions.BottomLeft;
+                UiFactory.Stretch(label.rectTransform, 0, 0, 0, 8);
+                var line = b.transform.Find("Underline").GetComponent<RectTransform>();
+                line.anchorMin = line.anchorMax = line.pivot = new Vector2(0, 0);
+                line.anchoredPosition = new Vector2(0, 2);
+            }
             _tabs.Add((tab, b, null));
             _setSelected.Add(setSelected);
         }

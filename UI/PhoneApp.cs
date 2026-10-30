@@ -142,7 +142,13 @@ namespace SCH1_StackLimitPlus.UI
             CopyRect(container, root);
             _root = shell.gameObject;
             MelonLogger.Msg($"[phone] app placed under {appRect.parent.name}, screen {container.rect.size}, layer {shell.gameObject.layer}");
-            _menu = new MenuView(root, phone: true, onClose: Close);
+            // lay out at half size and scale up 2x: the phone screen is ~1200 units wide but small on screen
+            const float scale = 2f;
+            var scaled = UiFactory.Node("Scaled", root);
+            scaled.anchorMin = scaled.anchorMax = scaled.pivot = new Vector2(0.5f, 0.5f);
+            scaled.sizeDelta = container.rect.size / scale;
+            scaled.localScale = Vector3.one * scale;
+            _menu = new MenuView(scaled, phone: true, onClose: Close);
             _addTabs(_menu);
             _root.SetActive(false);
         }
