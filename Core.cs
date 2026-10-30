@@ -64,6 +64,7 @@ public class Core : MelonMod
         PlayerReady = false;
         _frameCounter = 0;
         PlaceResolver.ClearCache();
+        ItemCatalog.ClearPointerCache();
         InputBlocker.Reset();
         Theme.ResetCaches();
     }
@@ -84,11 +85,15 @@ public class Core : MelonMod
         }
         if (!PlayerReady) return;
 
-        // picks up newly placed racks/mixers without hooking their init during save loading
+        // picks up newly placed racks/mixers without hooking their init during save loading;
+        // the scene search costs a hitch, so only when a capacity is actually customised
         _worldTimer += Time.unscaledDeltaTime;
-        if (_worldTimer >= 10f)
+        if (_worldTimer >= 30f)
         {
             _worldTimer = 0;
+            bool anyCapacity = Settings.DryingRackCapacity.HasValue || Settings.MixerMaxMix.Count > 0
+                || System.Linq.Enumerable.Any(Settings.Objects.Values, o => o.Capacity.HasValue);
+            if (anyCapacity)
             try { WorldValues.Apply(Settings); }
             catch (Exception ex) { ErrorOnce($"Could not apply cash/rack/mixer values: {ex.Message}"); }
         }

@@ -29,6 +29,18 @@ namespace SCH1_StackLimitPlus.Game
             Items = _items.Values.Where(i => i.Def != null).OrderBy(i => i.Name).ToList();
         }
 
+        // per native object, so the hot slot patch doesn't marshal ID/category strings on every call
+        static readonly Dictionary<System.IntPtr, ItemInfo> InfoByPointer = new();
+
+        public static void ClearPointerCache() => InfoByPointer.Clear();
+
+        public static ItemInfo CachedInfo(BaseItemDefinition def)
+        {
+            if (!InfoByPointer.TryGetValue(def.Pointer, out var info))
+                InfoByPointer[def.Pointer] = info = Info(def);
+            return info;
+        }
+
         public static ItemInfo Info(BaseItemDefinition def)
         {
             if (!VanillaLimits.TryGetValue(def.ID, out var vanilla))
