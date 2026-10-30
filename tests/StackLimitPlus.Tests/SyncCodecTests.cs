@@ -10,7 +10,7 @@ public class SyncCodecTests
         var s = ModSettings.CreateDefault();
         s.Global = 120; s.Categories["Packaging"] = 300; s.Items["baggie"] = 999;
         s.Places[Place.Storage] = new PlaceSetting { Mode = PlaceMode.Custom, Custom = 250 };
-        s.AtmWeeklyLimit = 40000; s.DryingRackCapacity = 40; s.MixerMaxMix["MixingStation"] = 25;
+        s.CashPerSlot = 4000; s.AtmWeeklyLimit = 40000; s.DryingRackCapacity = 40; s.MixerMaxMix["MixingStation"] = 25;
         s.Objects["g1"] = new ObjectSetting { SlotMode = ObjectSlotMode.Vanilla, Capacity = 10 };
         s.Hotkey = "F9";
 
@@ -23,6 +23,7 @@ public class SyncCodecTests
         Assert.Equal(PlaceMode.Custom, d.Places[Place.Storage].Mode);
         Assert.Equal(250, d.Places[Place.Storage].Custom);
         Assert.Equal(40000, d.AtmWeeklyLimit);
+        Assert.Equal(4000, d.CashPerSlot);
         Assert.Equal(40, d.DryingRackCapacity);
         Assert.Equal(25, d.MixerMaxMix["MixingStation"]);
         Assert.Equal(ObjectSlotMode.Vanilla, d.Objects["g1"].SlotMode);

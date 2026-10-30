@@ -17,14 +17,12 @@ namespace SCH1_StackLimitPlus.UI.Tabs
         public override void Build(RectTransform content, bool phone)
         {
             var body = ScrollBody(content, phone);
+            UiFactory.SectionTitle(body, "Storage", 12);
+            Add(body, phone, WorldValues.CashPerSlot, "Cash per slot", "How much cash fits in one storage slot, like employee beds and storage racks",
+                s => s.CashPerSlot, (s, v) => s.CashPerSlot = v);
             UiFactory.SectionTitle(body, "ATM", 12);
             Add(body, phone, WorldValues.AtmWeeklyLimit, "Weekly deposit limit", "How much you can deposit at ATMs each week. Can only be raised.",
                 s => s.AtmWeeklyLimit, (s, v) => s.AtmWeeklyLimit = v);
-
-            var note = UiFactory.Text(body, "Cash per slot (1,000) is fixed inside the game's code and can't be changed by a mod.",
-                Theme.Small, Theme.TextMuted);
-            note.enableWordWrapping = true;
-            note.overflowMode = Il2CppTMPro.TextOverflowModes.Overflow;
         }
 
         void Add(RectTransform body, bool phone, string key, string label, string help, Func<ModSettings, float?> get, Action<ModSettings, float?> set)

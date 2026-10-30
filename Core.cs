@@ -56,6 +56,8 @@ public class Core : MelonMod
         MelonLogger.Msg($"StackLimitPlus loaded. Global limit: {Settings.Global?.ToString() ?? "vanilla"}, hotkey: {Settings.Hotkey}");
 
         // MelonLoader applies [HarmonyPatch] classes in this assembly by itself
+        CashSlotCap.Install();
+        CashSlotCap.Apply(Settings);
     }
 
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -199,6 +201,7 @@ public class Core : MelonMod
     private static void ApplyAll()
     {
         Catalog.Apply(Settings);
+        CashSlotCap.Apply(Settings);
         try { WorldValues.Apply(Settings); }
         catch (Exception ex) { ErrorOnce($"Could not apply cash/rack/mixer values: {ex.Message}"); }
     }

@@ -10,11 +10,12 @@ namespace SCH1_StackLimitPlus.Game
     // ATM limit, drying rack capacity and mixer max mix. Vanilla values are captured before the first write.
     public static class WorldValues
     {
+        public const string CashPerSlot = "CashPerSlot";
         public const string AtmWeeklyLimit = "AtmWeeklyLimit";
         public const string DryingRack = "DryingRack";
         public static string MixerKey(string typeName) => "Mixer:" + typeName;
 
-        static readonly Dictionary<string, float> _vanilla = new();
+        static readonly Dictionary<string, float> _vanilla = new() { [CashPerSlot] = CashSlotCap.Vanilla };
         public static IReadOnlyDictionary<string, float> Vanilla => _vanilla;
         static bool? _atmLimitWritten;
 

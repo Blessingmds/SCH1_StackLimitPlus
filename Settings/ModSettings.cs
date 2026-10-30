@@ -31,6 +31,7 @@ namespace SCH1_StackLimitPlus.Settings
         public Dictionary<string, int> Items { get; set; } = new();
         public bool IncludeUnstackable { get; set; }
         public Dictionary<Place, PlaceSetting> Places { get; set; } = new();
+        public float? CashPerSlot { get; set; }
         public float? AtmWeeklyLimit { get; set; }
         public int? DryingRackCapacity { get; set; }
         public Dictionary<string, int> MixerMaxMix { get; set; } = new();

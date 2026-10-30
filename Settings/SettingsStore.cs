@@ -104,6 +104,7 @@ namespace SCH1_StackLimitPlus.Settings
             ClampAll(s.Items);
             ClampAll(s.MixerMaxMix);
             s.DryingRackCapacity = Clamp(s.DryingRackCapacity);
+            s.CashPerSlot = ClampCash(s.CashPerSlot);
             s.AtmWeeklyLimit = ClampCash(s.AtmWeeklyLimit);
             if (s.WindowWidth.HasValue) s.WindowWidth = Math.Clamp(s.WindowWidth.Value, MinWindowWidth, MaxWindowSize);
             if (s.WindowHeight.HasValue) s.WindowHeight = Math.Clamp(s.WindowHeight.Value, MinWindowHeight, MaxWindowSize);

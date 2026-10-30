@@ -27,7 +27,7 @@ public class SettingsStoreTests : IDisposable
         var s = ModSettings.CreateDefault();
         s.Global = 250; s.Categories["Product"] = 40; s.Items["baggie"] = 999; s.IncludeUnstackable = true;
         s.Places[Place.Deliveries] = new PlaceSetting { Mode = PlaceMode.Custom, Custom = 500 };
-        s.AtmWeeklyLimit = 50000; s.DryingRackCapacity = 40;
+        s.CashPerSlot = 5000; s.AtmWeeklyLimit = 50000; s.DryingRackCapacity = 40;
         s.MixerMaxMix["MixingStationMk2"] = 30;
         s.Objects["abc"] = new ObjectSetting { SlotMode = ObjectSlotMode.Custom, SlotCustom = 60, Capacity = 35 };
         s.Hotkey = "F8";
