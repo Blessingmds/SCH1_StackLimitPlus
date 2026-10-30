@@ -124,22 +124,32 @@ namespace SCH1_StackLimitPlus.UI
 
         void Build()
         {
-            // apps live next to each other in the phone screen; borrow the Deliveries app's parent
+            // Mirror the Deliveries app: a sibling of its object, with its rect, holding a copy of its screen container's rect.
+            // (Parenting inside DeliveryApp itself left us hidden whenever that app was closed.)
             DeliveryApp? reference = null;
             foreach (var app in Resources.FindObjectsOfTypeAll<DeliveryApp>())
                 if (app.gameObject.scene.IsValid()) { reference = app; break; }
-            var area = reference?.appContainer?.parent;
-            if (area == null) { Core.ErrorOnce("Phone app area not found."); return; }
+            var appRect = reference?.GetComponent<RectTransform>();
+            var container = reference?.appContainer;
+            if (appRect == null || container == null || appRect.parent == null) { Core.ErrorOnce("Phone app area not found."); return; }
 
-            MelonLogger.Msg($"[phone] app area: {area.name} layer {area.gameObject.layer}, canvas {area.GetComponentInParent<Canvas>()?.renderMode}");
-
+            var shell = UiFactory.Node("StackLimitPlusApp", appRect.parent);
+            CopyRect(appRect, shell);
             // opaque base: the phone's own apps cover the home screen completely
-            var root = UiFactory.Panel(area, new Color(0.15f, 0.15f, 0.15f, 1f), name: "StackLimitPlusApp").rectTransform;
-            UiFactory.Stretch(root);
-            _root = root.gameObject;
+            var root = UiFactory.Panel(shell, new Color(0.15f, 0.15f, 0.15f, 1f), name: "Screen").rectTransform;
+            CopyRect(container, root);
+            _root = shell.gameObject;
+            MelonLogger.Msg($"[phone] app placed under {appRect.parent.name}, screen {container.rect.size}, layer {shell.gameObject.layer}");
             _menu = new MenuView(root, phone: true, onClose: Close);
             _addTabs(_menu);
             _root.SetActive(false);
+        }
+
+        static void CopyRect(RectTransform from, RectTransform to)
+        {
+            to.anchorMin = from.anchorMin; to.anchorMax = from.anchorMax; to.pivot = from.pivot;
+            to.anchoredPosition = from.anchoredPosition; to.sizeDelta = from.sizeDelta;
+            to.localRotation = from.localRotation; to.localScale = from.localScale;
         }
 
         // 128px rounded square with three stacked crates, in the phone's flat icon style

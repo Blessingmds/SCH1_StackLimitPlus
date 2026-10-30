@@ -146,7 +146,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
         static void SetRow(ValueRow row, int? value, int? inherited, string? inheritedText)
         {
             UiFactory.SetNumber(row.Field, value, inherited ?? 0);
-            if (!inherited.HasValue && inheritedText != null) ((TextMeshProUGUI)row.Field.placeholder).text = inheritedText;
+            if (!inherited.HasValue && inheritedText != null) row.Field.placeholder.Cast<TextMeshProUGUI>().text = inheritedText;
             row.Field.interactable = !ReadOnly;
             UiFactory.SetShown(row.Reset, value.HasValue && !ReadOnly);
         }

@@ -79,7 +79,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
                 var ps = s.Places[place];
                 select((int)ps.Mode);
                 field.SetTextWithoutNotify(ps.Custom.ToString());
-                ((TextMeshProUGUI)field.placeholder).text = "100";
+                field.placeholder.Cast<TextMeshProUGUI>().text = "100";
                 UiFactory.SetShown(field, ps.Mode == PlaceMode.Custom);
                 field.interactable = !ReadOnly;
                 foreach (var b in field.transform.parent.GetComponentsInChildren<Button>()) b.interactable = !ReadOnly;

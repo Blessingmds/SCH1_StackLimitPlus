@@ -210,8 +210,8 @@ namespace SCH1_StackLimitPlus.UI
             var f = Field(parent, width, "Number");
             f.contentType = TMP_InputField.ContentType.IntegerNumber;
             f.characterLimit = max.ToString().Length;
-            ((TextMeshProUGUI)f.textComponent).alignment = TextAlignmentOptions.MidlineRight;
-            ((TextMeshProUGUI)f.placeholder).alignment = TextAlignmentOptions.MidlineRight;
+            f.textComponent.Cast<TextMeshProUGUI>().alignment = TextAlignmentOptions.MidlineRight;
+            f.placeholder.Cast<TextMeshProUGUI>().alignment = TextAlignmentOptions.MidlineRight;
             f.onEndEdit.AddListener((UnityAction<string>)new Action<string>(value =>
             {
                 GameInput.IsTyping = false;
@@ -225,7 +225,7 @@ namespace SCH1_StackLimitPlus.UI
         public static TMP_InputField SearchField(Transform parent, string placeholder, Action<string> onChange, float width = 240)
         {
             var f = Field(parent, width, "Search");
-            ((TextMeshProUGUI)f.placeholder).text = placeholder;
+            f.placeholder.Cast<TextMeshProUGUI>().text = placeholder;
             f.onValueChanged.AddListener((UnityAction<string>)new Action<string>(onChange));
             return f;
         }
@@ -234,7 +234,7 @@ namespace SCH1_StackLimitPlus.UI
         public static void SetNumber(TMP_InputField f, float? value, float inherited)
         {
             f.SetTextWithoutNotify(value.HasValue ? Format(value.Value) : "");
-            ((TextMeshProUGUI)f.placeholder).text = Format(inherited);
+            f.placeholder.Cast<TextMeshProUGUI>().text = Format(inherited);
         }
 
         public static string Format(float v) => Mathf.Approximately(v, Mathf.Round(v)) ? ((long)Mathf.Round(v)).ToString("N0") : v.ToString("N2");

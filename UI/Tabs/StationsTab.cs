@@ -54,7 +54,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
                 var value = get(Core.Settings);
                 bool known = WorldValues.Vanilla.TryGetValue(key, out var vanilla);
                 UiFactory.SetNumber(field, value, vanilla);
-                if (!known) ((TextMeshProUGUI)field.placeholder).text = "Vanilla";
+                if (!known) field.placeholder.Cast<TextMeshProUGUI>().text = "Vanilla";
                 field.interactable = !ReadOnly;
                 UiFactory.SetShown(reset, value.HasValue && !ReadOnly);
             }
