@@ -98,6 +98,7 @@ namespace SCH1_StackLimitPlus.UI
                 _home?.SetIsOpen(false);
                 _root.SetActive(true);
                 _root.transform.SetAsLastSibling();
+                RevealParents();
                 Core.Catalog.Rescan();
                 _menu.Show(_menu.CurrentTitle ?? "Items");
             }
@@ -113,6 +114,7 @@ namespace SCH1_StackLimitPlus.UI
         {
             if (!IsOpen) return;
             _root!.SetActive(false);
+            RestoreParents();
             Il2CppScheduleOne.GameInput.IsTyping = false;
             try
             {
@@ -143,6 +145,43 @@ namespace SCH1_StackLimitPlus.UI
             _menu = new MenuView(root, phone: true, onClose: Close);
             _addTabs(_menu);
             _root.SetActive(false);
+        }
+
+        // The game shows its apps canvas only while one of its own apps is open; ours isn't one of them,
+        // so switch on whatever hides it and put it back on close.
+        readonly System.Collections.Generic.List<Action> _restore = new();
+        bool _loggedParents;
+
+        void RevealParents()
+        {
+            RestoreParents();
+            var log = new System.Text.StringBuilder("[phone] parents:");
+            for (var t = _root!.transform.parent; t != null; t = t.parent)
+            {
+                var go = t.gameObject;
+                var canvas = go.GetComponent<Canvas>();
+                var group = go.GetComponent<CanvasGroup>();
+                log.Append($" {go.name}(active={go.activeSelf}, canvas={canvas?.enabled.ToString() ?? "-"}, alpha={group?.alpha.ToString() ?? "-"})");
+                if (!go.activeSelf) { go.SetActive(true); _restore.Add(() => go.SetActive(false)); }
+                if (canvas != null && !canvas.enabled) { canvas.enabled = true; _restore.Add(() => canvas.enabled = false); }
+                if (group != null && group.alpha < 1f)
+                {
+                    float alpha = group.alpha;
+                    group.alpha = 1f;
+                    _restore.Add(() => group.alpha = alpha);
+                }
+                if (t.GetComponent<Phone>() != null) break;
+            }
+            if (!_loggedParents) { _loggedParents = true; MelonLogger.Msg(log.ToString()); }
+        }
+
+        void RestoreParents()
+        {
+            foreach (var undo in _restore)
+            {
+                try { undo(); } catch (Exception) { } // object may be gone after a scene change
+            }
+            _restore.Clear();
         }
 
         static void CopyRect(RectTransform from, RectTransform to)
