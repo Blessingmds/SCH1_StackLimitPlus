@@ -28,3 +28,35 @@ namespace SCH1_StackLimitPlus.Game
         }
     }
 }
+
+namespace SCH1_StackLimitPlus.Game
+{
+    // Dropping onto a matching stack, the game adds one at a time up to the item's StackLimit (the max over all places),
+    // never asking the slot. Clamp the dragged amount to what the target slot takes, so per-place/object limits hold.
+    [HarmonyPatch(typeof(Il2CppScheduleOne.UI.Items.ItemUIManager), nameof(Il2CppScheduleOne.UI.Items.ItemUIManager.EndDrag))]
+    static class DragDropClampPatch
+    {
+        static void Prefix(Il2CppScheduleOne.UI.Items.ItemUIManager __instance)
+        {
+            try
+            {
+                if (__instance.isDraggingCash) return;
+                var source = __instance.draggedSlot?.assignedSlot;
+                var target = __instance.HoveredSlot?.assignedSlot;
+                var item = source?.ItemInstance;
+                if (target == null || item == null || target.Pointer == source!.Pointer) return;
+
+                var existing = target.ItemInstance;
+                if (existing != null && !existing.CanStackWith(item, false)) return; // a swap, not a stack
+                int cap = target.GetCapacityForItem(item, false);
+                // an empty slot that refuses the item is the game's own call (filters, locks); leave it
+                if (existing == null && cap <= 0) return;
+                if (__instance.draggedAmount > cap) __instance.draggedAmount = cap;
+            }
+            catch (Exception ex)
+            {
+                Core.ErrorOnce($"Drag limit patch failed: {ex.Message}");
+            }
+        }
+    }
+}
