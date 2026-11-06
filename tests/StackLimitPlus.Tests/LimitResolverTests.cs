@@ -128,3 +128,33 @@ public class InheritedLimitTests
         Assert.Equal(1, LimitResolver.InheritedItemLimit(s, mag));
     }
 }
+
+public class VehicleTrunkTests
+{
+    static ItemInfo Kush => new("ogkush", "Product", 20, false);
+
+    [Fact]
+    public void TypeOverrideBeatsTrunkSetting()
+    {
+        var s = ModSettings.CreateDefault();
+        s.Places[Place.Vehicles] = new PlaceSetting { Mode = PlaceMode.Custom, Custom = 300 };
+        var van = ObjectSettings.VehicleKey("veeper");
+        Assert.Equal(300, LimitResolver.SlotLimit(s, Kush, Place.Vehicles, van));
+        ObjectSettings.Update(s, van, o => { o.SlotMode = ObjectSlotMode.Custom; o.SlotCustom = 50; });
+        Assert.Equal(50, LimitResolver.SlotLimit(s, Kush, Place.Vehicles, van));
+        Assert.Equal(300, LimitResolver.SlotLimit(s, Kush, Place.Vehicles, ObjectSettings.VehicleKey("shitbox")));
+        ObjectSettings.Update(s, van, o => o.SlotMode = ObjectSlotMode.FollowPlace);
+        Assert.False(s.Objects.ContainsKey(van));
+    }
+
+    [Fact]
+    public void OldFilesKeepTrunksOnTheStorageSetting()
+    {
+        var s = ModSettings.CreateDefault();
+        s.Places.Remove(Place.Vehicles);
+        s.Places[Place.Storage] = new PlaceSetting { Mode = PlaceMode.Custom, Custom = 250 };
+        SettingsStore.Normalize(s);
+        Assert.Equal(PlaceMode.Custom, s.Places[Place.Vehicles].Mode);
+        Assert.Equal(250, s.Places[Place.Vehicles].Custom);
+    }
+}

@@ -43,6 +43,8 @@ namespace SCH1_StackLimitPlus.Game
             if (owner.TryCast<StorageEntity>() is { } storage)
             {
                 if (storage.GetComponentInParent<DeliveryVehicle>() != null) return (Place.Deliveries, null);
+                if (storage.GetComponentInParent<Il2CppScheduleOne.Vehicles.LandVehicle>() is { } vehicle)
+                    return (Place.Vehicles, ObjectSettings.VehicleKey(VehicleTypes.KeyOf(vehicle)));
                 var buildable = storage.GetComponentInParent<BuildableItem>();
                 return (Place.Storage, buildable != null ? Guid(buildable) : null);
             }

@@ -64,15 +64,62 @@ namespace SCH1_StackLimitPlus.UI.Tabs
                 "Guns, tools and magazines normally keep their vanilla size", phone, out _);
             _showUnstackable = UiFactory.Switch(unstackable, on => Commit(s => s.IncludeUnstackable = on));
 
+            // chips wrap onto as many lines as the width needs
+            var chips = UiFactory.Node("GroupFilter", body);
+            var grid = chips.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(phone ? 96 : 112, 32);
+            grid.spacing = new Vector2(4, 2);
+            grid.padding = new RectOffset(0, 0, 4, 6);
+            _chips = chips;
+
             var searchRow = UiFactory.Row(body, 8, 42, "SearchRow");
-            var search = UiFactory.SearchField(searchRow.transform, "Search items", text => { _filter = text.Trim(); ApplyFilter(); }, phone ? 200 : 280);
+            var search = UiFactory.SearchField(searchRow.transform, "Search items", text => { _filter = text.Trim(); _page = 0; ApplyFilter(); }, phone ? 200 : 280);
             UiFactory.Size(search, flexWidth: 1);
 
             _itemList = UiFactory.Column(body, 0, "ItemList").GetComponent<RectTransform>();
             _noMatches = UiFactory.Text(body, "No items match your search.", Theme.Body, Theme.TextMuted, name: "NoMatches");
             UiFactory.Size(_noMatches, height: 40);
+
+            _pager = UiFactory.Row(body, 12, 48, "Pager").gameObject;
+            _pager.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+            _prev = UiFactory.Button(_pager.transform, "‹ Prev", () => { _page--; ApplyFilter(); }, width: 90);
+            _pageText = UiFactory.Text(_pager.transform, "", Theme.Small, Theme.TextMuted);
+            _pageText.alignment = TextAlignmentOptions.Center;
+            UiFactory.Size(_pageText, width: 110, height: 34);
+            _next = UiFactory.Button(_pager.transform, "Next ›", () => { _page++; ApplyFilter(); }, width: 90);
             AddMissingItems();
         }
+
+        RectTransform _chips = null!;
+        string? _group; // null = all
+        string _chipKey = "";
+        readonly List<(string? group, Action<bool> setSelected)> _chipViews = new();
+
+        // drug types first, then the game's categories in menu order
+        void BuildChips()
+        {
+            var present = new HashSet<string>(_items.Select(r => r.Item.Group));
+            var groups = present.Where(g => !Categories.Contains(g)).OrderBy(g => g)
+                .Concat(Categories.Where(present.Contains)).ToList();
+            var key = string.Join("|", groups);
+            if (key == _chipKey) return;
+            _chipKey = key;
+            for (int i = _chips.childCount - 1; i >= 0; i--) UnityEngine.Object.Destroy(_chips.GetChild(i).gameObject);
+            _chipViews.Clear();
+            foreach (var g in groups.Prepend(null))
+            {
+                var group = g;
+                var (_, setSelected) = UiFactory.TextTab(_chips, group ?? "All", () => { _group = group; _page = 0; ApplyFilter(); }, 32, Theme.Small);
+                _chipViews.Add((group, setSelected));
+            }
+            if (_group != null && !present.Contains(_group)) _group = null;
+        }
+
+        const int PageSize = 25;
+        int _page;
+        GameObject _pager = null!;
+        Button _prev = null!, _next = null!;
+        TextMeshProUGUI _pageText = null!;
 
         static void AddValue(ValueRow row, Transform controls, Action<int?> commit)
         {
@@ -115,19 +162,25 @@ namespace SCH1_StackLimitPlus.UI.Tabs
 
         void ApplyFilter()
         {
-            int shown = 0;
-            foreach (var r in _items)
-            {
-                bool match = _filter.Length == 0 || r.Item.Name.IndexOf(_filter, StringComparison.OrdinalIgnoreCase) >= 0;
-                r.Go.SetActive(match);
-                if (match) shown++;
-            }
-            _noMatches.gameObject.SetActive(shown == 0);
+            foreach (var (group, setSelected) in _chipViews) setSelected(group == _group);
+            var matches = _items.Where(r => (_group == null || r.Item.Group == _group)
+                && (_filter.Length == 0 || r.Item.Name.IndexOf(_filter, StringComparison.OrdinalIgnoreCase) >= 0)).ToList();
+            int pages = Math.Max(1, (matches.Count + PageSize - 1) / PageSize);
+            _page = Math.Clamp(_page, 0, pages - 1);
+            var visible = new HashSet<ItemRow>(matches.Skip(_page * PageSize).Take(PageSize));
+            foreach (var r in _items) r.Go.SetActive(visible.Contains(r));
+
+            _noMatches.gameObject.SetActive(matches.Count == 0);
+            _pager.SetActive(pages > 1);
+            _pageText.text = $"Page {_page + 1} of {pages}";
+            _prev.interactable = _page > 0;
+            _next.interactable = _page < pages - 1;
         }
 
         public override void Refresh()
         {
             AddMissingItems();
+            BuildChips();
             var s = Core.Settings;
 
             SetRow(_global, s.Global, null, "Vanilla");

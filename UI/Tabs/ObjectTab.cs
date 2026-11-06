@@ -31,7 +31,8 @@ namespace SCH1_StackLimitPlus.UI.Tabs
         public override void Build(RectTransform content, bool phone)
         {
             var body = ScrollBody(content, phone);
-            _name = UiFactory.SectionTitle(body, "", 12);
+            _name = UiFactory.Text(body, "", Theme.Title, Theme.Text, Il2CppTMPro.FontStyles.Bold);
+            UiFactory.Size(_name, height: 30);
             _place = UiFactory.Text(body, "", Theme.Small, Theme.TextMuted);
             UiFactory.Size(_place, height: 20);
 
@@ -62,7 +63,12 @@ namespace SCH1_StackLimitPlus.UI.Tabs
             var footer = UiFactory.Row(body, 12, 44, "Customised");
             _count = UiFactory.Text(footer.transform, "", Theme.Small, Theme.TextMuted);
             UiFactory.Size(_count, flexWidth: 1, height: 20);
-            UiFactory.LinkButton(footer.transform, "Clear all objects", () => Commit(s => s.Objects.Clear()));
+            // vehicle types live in Objects too but belong to Places, so they stay
+            UiFactory.LinkButton(footer.transform, "Clear all objects", () => Commit(s =>
+            {
+                foreach (var key in System.Linq.Enumerable.ToList(s.Objects.Keys))
+                    if (!ObjectSettings.IsVehicle(key)) s.Objects.Remove(key);
+            }));
         }
 
         static void Edit(System.Action<ObjectSetting> change)
@@ -107,7 +113,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
                 UiFactory.SetShown(_capacityReset, o.Capacity.HasValue && !ReadOnly);
             }
 
-            int n = s.Objects.Count;
+            int n = System.Linq.Enumerable.Count(s.Objects.Keys, k => !ObjectSettings.IsVehicle(k));
             _count.text = n == 1 ? "1 object customised" : $"{n} objects customised";
         }
 

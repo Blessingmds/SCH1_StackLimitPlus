@@ -96,6 +96,9 @@ namespace SCH1_StackLimitPlus.Settings
             s.Objects ??= new();
             if (string.IsNullOrWhiteSpace(s.Hotkey)) s.Hotkey = "F6";
 
+            // trunks used to count as Storage: files from before keep that behaviour
+            if (!s.Places.ContainsKey(Place.Vehicles) && s.Places.TryGetValue(Place.Storage, out var storage) && storage != null)
+                s.Places[Place.Vehicles] = new PlaceSetting { Mode = storage.Mode, Custom = storage.Custom };
             foreach (var kv in ModSettings.DefaultPlaces())
                 if (!s.Places.TryGetValue(kv.Key, out var p) || p == null) s.Places[kv.Key] = kv.Value;
 

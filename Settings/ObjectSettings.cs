@@ -4,6 +4,11 @@ namespace SCH1_StackLimitPlus.Settings
 {
     public static class ObjectSettings
     {
+        // a vehicle type's trunks share one entry in Objects, keyed by its name (lower case)
+        public const string VehiclePrefix = "vehicle:";
+        public static string VehicleKey(string vehicleType) => VehiclePrefix + vehicleType;
+        public static bool IsVehicle(string key) => key.StartsWith(VehiclePrefix, StringComparison.Ordinal);
+
         public static ObjectSetting Get(ModSettings s, string guid) =>
             s.Objects.TryGetValue(guid, out var o) ? o : new ObjectSetting();
 

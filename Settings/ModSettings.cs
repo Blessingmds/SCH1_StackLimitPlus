@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace SCH1_StackLimitPlus.Settings
 {
-    public enum Place { Pockets, Storage, Deliveries, Npcs, DryingRack, BrickPress, Cauldron, ChemistryStation, LabOven, MixingStation, PackagingStation }
+    public enum Place { Pockets, Storage, Deliveries, Npcs, DryingRack, BrickPress, Cauldron, ChemistryStation, LabOven, MixingStation, PackagingStation, Vehicles }
 
     public enum PlaceMode { ItemLimits, Vanilla, Custom }
 

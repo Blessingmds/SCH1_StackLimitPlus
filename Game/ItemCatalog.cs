@@ -7,7 +7,8 @@ using UnityEngine;
 
 namespace SCH1_StackLimitPlus.Game
 {
-    public record CatalogItem(ItemDefinition Def, ItemInfo Info, string Name, Sprite? Icon);
+    // Group: the filter chip in the Items tab: a product's drug type (Weed, Cocaine, ...), otherwise its category
+    public record CatalogItem(ItemDefinition Def, ItemInfo Info, string Name, Sprite? Icon, string Group);
 
     public class ItemCatalog
     {
@@ -27,7 +28,8 @@ namespace SCH1_StackLimitPlus.Game
                 if (def == null || !_seen.Add(def.Pointer)) continue;
                 if (string.IsNullOrEmpty(def.ID)) continue;
                 // re-add even if known: assets can be reloaded as new objects between scenes
-                _items[def.ID] = new CatalogItem(def, Info(def), def.Name ?? def.ID, def.Icon);
+                var info = Info(def);
+                _items[def.ID] = new CatalogItem(def, info, def.Name ?? def.ID, def.Icon, GroupOf(def, info));
             }
             Items = _items.Values.Where(i => i.Def != null).OrderBy(i => i.Name).ToList();
         }
@@ -50,6 +52,18 @@ namespace SCH1_StackLimitPlus.Game
                 VanillaLimits[def.ID] = vanilla = def.StackLimit;
             bool hasOwnCount = def.TryCast<IntegerItemDefinition>() != null;
             return new ItemInfo(def.ID, def.Category.ToString(), vanilla, vanilla <= 1 || hasOwnCount);
+        }
+
+        static string GroupOf(ItemDefinition def, ItemInfo info)
+        {
+            var product = def.TryCast<Il2CppScheduleOne.Product.ProductDefinition>();
+            if (product == null) return info.Category;
+            return product.DrugType.ToString() switch
+            {
+                "Marijuana" => "Weed",
+                "Methamphetamine" => "Meth",
+                var other => other,
+            };
         }
 
         public bool TryGet(string id, out CatalogItem item) => _items.TryGetValue(id, out item!);

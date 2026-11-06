@@ -401,8 +401,8 @@ namespace SCH1_StackLimitPlus.UI
             // a worker's bed shows Cash per slot instead of Stack size; the hidden one is skipped by the spotlight
             yield return new Step("This object", true, Kind.Do, "This object",
                 m => new[] { m.FindInCurrentTab("Setting:Stack size"), m.FindInCurrentTab("Setting:Cash per slot") }, "Just this one",
-                "Change the stack size for just this object. Everything else keeps following Places.",
-                "Only this one changed. It keeps its own size until you reset it here.",
+                "Change the limit for just this object. Everything else keeps following Places.",
+                "Only this one changed. It keeps its own limit until you reset it here.",
                 SkipIf: m => !m.IsAvailable("This object"));
             yield return new Step("Settings", true, Kind.Info, "Settings", Row("Menu key"), "Your key",
                 $"<b>{key}</b> opens this menu. Change it here if it clashes with another mod.");

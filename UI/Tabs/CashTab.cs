@@ -20,7 +20,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
             UiFactory.SectionTitle(body, "Storage", 12);
             Add(body, phone, WorldValues.CashPerSlot, "Cash per slot", "How much cash fits in one storage slot, like employee beds and storage racks",
                 s => s.CashPerSlot, (s, v) => s.CashPerSlot = v);
-            UiFactory.SectionTitle(body, "ATM", 12);
+            UiFactory.SectionTitle(body, "ATM");
             Add(body, phone, WorldValues.AtmWeeklyLimit, "Weekly deposit limit", "How much you can deposit at ATMs each week",
                 s => s.AtmWeeklyLimit, (s, v) => s.AtmWeeklyLimit = v);
         }

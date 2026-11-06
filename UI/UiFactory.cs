@@ -286,12 +286,17 @@ namespace SCH1_StackLimitPlus.UI
             return scroll;
         }
 
+        // Small muted caps with a line above (except a tab's first section), so a section never reads like a row.
+        // The returned text's parent is the whole header: callers toggle it via t.transform.parent.
         public static TextMeshProUGUI SectionTitle(Transform parent, string title, float topGap = 18)
         {
-            var wrap = Column(parent, name: "Section");
-            wrap.padding = new RectOffset(0, 0, (int)topGap, 6);
-            var t = Text(wrap.transform, title, Theme.Body, Theme.Text, FontStyles.Bold);
-            Size(t, height: 22);
+            bool first = topGap <= 12;
+            var wrap = Column(parent, first ? 0 : 14, "Section");
+            wrap.padding = new RectOffset(0, 0, first ? (int)topGap : 22, 4);
+            if (!first) Divider(wrap.transform);
+            var t = Text(wrap.transform, title.ToUpperInvariant(), Theme.Small, Theme.TextMuted, FontStyles.Bold);
+            t.characterSpacing = 6;
+            Size(t, height: 18);
             return t;
         }
 
