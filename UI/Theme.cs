@@ -82,6 +82,35 @@ namespace SCH1_StackLimitPlus.UI
             }
         }
 
+        static Sprite? _ring;
+
+        // 1.5px circle outline, anti-aliased, for the ? help button
+        public static Sprite? Ring
+        {
+            get
+            {
+                if (_ring != null) return _ring;
+                try
+                {
+                    const int n = 64;
+                    float r = n / 2f - 2f, c = n / 2f;
+                    var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+                    for (int y = 0; y < n; y++)
+                        for (int x = 0; x < n; x++)
+                        {
+                            float d = Mathf.Sqrt((x + 0.5f - c) * (x + 0.5f - c) + (y + 0.5f - c) * (y + 0.5f - c));
+                            tex.SetPixel(x, y, new Color(1, 1, 1, Mathf.Clamp01(2.5f - Mathf.Abs(d - r) * 1.2f)));
+                        }
+                    tex.Apply();
+                    _ring = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f);
+                    UnityEngine.Object.DontDestroyOnLoad(tex);
+                    UnityEngine.Object.DontDestroyOnLoad(_ring);
+                }
+                catch (System.Exception ex) { Core.ErrorOnce($"Ring sprite unavailable: {ex.Message}"); }
+                return _ring;
+            }
+        }
+
         public static void ResetCaches() => _font = null;
     }
 }

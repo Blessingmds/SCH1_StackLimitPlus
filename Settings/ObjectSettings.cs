@@ -12,7 +12,7 @@ namespace SCH1_StackLimitPlus.Settings
         {
             var o = Get(s, guid);
             change(o);
-            if (o.SlotMode == ObjectSlotMode.FollowPlace && o.Capacity == null) s.Objects.Remove(guid);
+            if (o.SlotMode == ObjectSlotMode.FollowPlace && o.Capacity == null && o.CashPerSlot == null) s.Objects.Remove(guid);
             else s.Objects[guid] = o;
         }
     }

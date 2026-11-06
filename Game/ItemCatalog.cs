@@ -15,6 +15,7 @@ namespace SCH1_StackLimitPlus.Game
         static readonly Dictionary<string, int> VanillaLimits = new();
 
         readonly Dictionary<string, CatalogItem> _items = new();
+        static readonly HashSet<System.IntPtr> _seen = new(); // cleared with the pointer cache on scene change
 
         public IReadOnlyList<CatalogItem> Items { get; private set; } = new List<CatalogItem>();
 
@@ -22,7 +23,9 @@ namespace SCH1_StackLimitPlus.Game
         {
             foreach (var def in Resources.FindObjectsOfTypeAll<ItemDefinition>())
             {
-                if (def == null || string.IsNullOrEmpty(def.ID)) continue;
+                // already read this exact native object: skip the costly string marshalling (~50ms per menu open)
+                if (def == null || !_seen.Add(def.Pointer)) continue;
+                if (string.IsNullOrEmpty(def.ID)) continue;
                 // re-add even if known: assets can be reloaded as new objects between scenes
                 _items[def.ID] = new CatalogItem(def, Info(def), def.Name ?? def.ID, def.Icon);
             }
@@ -32,7 +35,7 @@ namespace SCH1_StackLimitPlus.Game
         // per native object, so the hot slot patch doesn't marshal ID/category strings on every call
         static readonly Dictionary<System.IntPtr, ItemInfo> InfoByPointer = new();
 
-        public static void ClearPointerCache() => InfoByPointer.Clear();
+        public static void ClearPointerCache() { InfoByPointer.Clear(); _seen.Clear(); }
 
         public static ItemInfo CachedInfo(BaseItemDefinition def)
         {

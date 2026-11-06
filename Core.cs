@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Il2CppInterop.Runtime;
@@ -59,8 +59,12 @@ public class Core : MelonMod
         WorldValues.ApplyConstants(Settings);
     }
 
+    // a tour cut short by quitting or changing scene still undoes its test-run changes
+    public override void OnApplicationQuit() => Overlay.EndTutorial();
+
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
     {
+        Overlay.EndTutorial();
         _sceneLoaded = sceneName == "Main";
         _playerReady = false;
         PlayerReady = false;
@@ -83,6 +87,7 @@ public class Core : MelonMod
                 Catalog.Rescan();
                 ApplyAll();
                 MelonLogger.Msg($"Local player detected. Applied limits to {Catalog.Items.Count} items.");
+                if (!Settings.HasTutorialCompleted) _notice.Show(Settings.Hotkey);
             }
         }
         if (!PlayerReady) return;
@@ -117,12 +122,21 @@ public class Core : MelonMod
         }
         Overlay.Tick();
         LookTarget.Tick(Overlay.IsOpen);
+        LookTarget.TickCash();
         PhoneMenu.Tick();
         LobbySync.Tick();
-        _hint.Show(LookTarget.Current != null && !Overlay.IsOpen, Settings.Hotkey);
+        _notice.Tick(Overlay.IsOpen || PhoneMenu.IsOpen);
+    }
+
+    // after the game has placed its own interaction prompt this frame, so ours sits right under it
+    public override void OnLateUpdate()
+    {
+        if (!PlayerReady) return;
+        _hint.Show(LookTarget.Current != null && !Overlay.IsOpen && !PhoneMenu.IsOpen, Settings.Hotkey);
     }
 
     private static readonly HintView _hint = new();
+    private static readonly TutorialNotice _notice = new();
     // the object the menu was opened on; drives the This object tab
     public static Target? OpenTarget { get; private set; }
 
@@ -144,8 +158,12 @@ public class Core : MelonMod
     }
 
     // Call after any change to Settings: applies to the game and saves.
+    // bumped on every change; the tutorial's do-it steps watch it
+    public static int SettingsVersion { get; private set; }
+
     public static void SettingsChanged()
     {
+        SettingsVersion++;
         ApplyAll();
         if (!IsClient)
         {
@@ -162,6 +180,17 @@ public class Core : MelonMod
         if (!IsClient) _store.Save(Settings);
     }
 
+    public static void MarkTutorialCompleted()
+    {
+        if (Settings.HasTutorialCompleted) return;
+        Settings.HasTutorialCompleted = true;
+        if (!IsClient) { _store.Save(Settings); return; }
+        // co-op client: Settings holds the host's values, so flip the flag in our own file only
+        var local = _store.Load();
+        local.HasTutorialCompleted = true;
+        _store.Save(local);
+    }
+
     public static void ReplaceSettings(ModSettings s)
     {
         Settings = s;
@@ -174,6 +203,7 @@ public class Core : MelonMod
         host.Hotkey = Settings.Hotkey;
         host.WindowWidth = Settings.WindowWidth;
         host.WindowHeight = Settings.WindowHeight;
+        host.HasTutorialCompleted = Settings.HasTutorialCompleted;
         IsClient = true;
         Settings = host;
         SettingsChanged();

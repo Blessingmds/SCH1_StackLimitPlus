@@ -113,6 +113,7 @@ namespace SCH1_StackLimitPlus.Settings
             {
                 o.SlotCustom = Math.Clamp(o.SlotCustom, 1, MaxStack);
                 o.Capacity = Clamp(o.Capacity);
+                o.CashPerSlot = ClampCash(o.CashPerSlot);
             }
         }
 

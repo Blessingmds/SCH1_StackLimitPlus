@@ -15,13 +15,21 @@ namespace SCH1_StackLimitPlus.UI
         readonly Func<MenuView, bool> _addTabs;
         GameObject? _canvas;
         MenuView? _menu;
+        Tutorial? _tutorial;
         RectTransform? _window;
         RectTransform? _grip;
         Vector2 _dragOffset;
         Vector2 _resizeStartMouse, _resizeStartSize;
         bool _dragging, _resizing;
 
-        public bool IsOpen => _canvas != null && _canvas.activeSelf;
+        public bool IsOpen => _canvas != null && _canvas.GetComponent<Canvas>().enabled;
+
+        // toggle the Canvas, not the GameObject: re-activating the item rows forces a full layout/text rebuild (hitch)
+        void SetVisible(bool on)
+        {
+            _canvas!.GetComponent<Canvas>().enabled = on;
+            _canvas.GetComponent<GraphicRaycaster>().enabled = on;
+        }
         public MenuView? Menu => _menu;
 
         public OverlayHost(Func<MenuView, bool> addTabs) => _addTabs = addTabs;
@@ -32,16 +40,30 @@ namespace SCH1_StackLimitPlus.UI
             if (_canvas == null || _menu == null) return;
             if (!IsOpen)
             {
-                _canvas.SetActive(true);
+                SetVisible(true);
                 InputBlocker.Block();
             }
             _menu.Show(tab ?? _menu.CurrentTitle ?? "Items");
+            if (_tutorial == null) return;
+            if (_tutorial.WaitingForQuest) _tutorial.ResumeAfterQuest();
+            else if (!Core.Settings.HasTutorialCompleted && !_tutorial.Running) _tutorial.Start(null);
+        }
+
+        // scene change or quit: undo the tour's test-run changes before the UI goes away
+        public void EndTutorial() => _tutorial?.Finish();
+
+        // page null = full tour; called by the ? button (current page) and Settings
+        public void StartTutorial(string? page)
+        {
+            Open(null);
+            if (_tutorial != null && !_tutorial.Running) _tutorial.Start(page);
         }
 
         public void Close()
         {
             if (!IsOpen) return;
-            _canvas!.SetActive(false);
+            if (_tutorial != null && !_tutorial.WaitingForQuest) _tutorial.Finish(); // closing mid-tour counts as skipping it
+            SetVisible(false);
             _dragging = _resizing = false;
             Il2CppScheduleOne.GameInput.IsTyping = false;
             InputBlocker.Unblock();
@@ -77,10 +99,12 @@ namespace SCH1_StackLimitPlus.UI
                 var size = new Vector2(Core.Settings.WindowWidth ?? DefaultWidth, Core.Settings.WindowHeight ?? DefaultHeight);
                 _window.sizeDelta = size;
                 _window.anchoredPosition = new Vector2(-size.x / 2f, size.y / 2f);
-                _menu = new MenuView(_window, phone: false, onClose: Close);
+                _menu = new MenuView(_window, phone: false, onClose: Close, onHelp: StartTutorial);
                 _addTabs(_menu);
                 _grip = BuildGrip(_window);
-                _canvas.SetActive(false);
+                _tutorial?.Finish(); // a tour from before a scene change: undo its changes before replacing it
+                _tutorial = new Tutorial(_canvas.transform, _menu, Close);
+                SetVisible(false);
             }
             catch (Exception ex)
             {
@@ -114,7 +138,9 @@ namespace SCH1_StackLimitPlus.UI
         // Called every frame from Core: Esc to close, drag by header, resize by grip.
         public void Tick()
         {
+            _tutorial?.TickQuest(); // the phone step runs while this window is closed
             if (!IsOpen || _window == null || _menu == null) return;
+            if (_tutorial != null && _tutorial.Running && !_tutorial.WaitingForQuest) { _tutorial.Tick(); return; } // controls locked: no Esc-close, drag or resize
             if (Input.GetKeyDown(KeyCode.Escape) && !Il2CppScheduleOne.GameInput.IsTyping) { Close(); return; }
 
             var canvas = _canvas!.GetComponent<Canvas>();

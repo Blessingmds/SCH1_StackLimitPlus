@@ -22,6 +22,11 @@ namespace SCH1_StackLimitPlus.UI.Tabs
             _hotkey = UiFactory.Text(hotkeyRow, "", Theme.Body, Theme.Text, align: TextAlignmentOptions.MidlineRight);
             UiFactory.Size(_hotkey, width: 120, height: 34);
             _change = UiFactory.Button(hotkeyRow, "Change", ToggleCapture, width: 120);
+            if (!phone) // the tour runs in the F6 window only
+            {
+                var tourRow = UiFactory.SettingRow(body, "Tutorial", "A quick tour of what the mod does", phone, out _);
+                UiFactory.Button(tourRow, "Show tutorial", () => Core.Overlay.StartTutorial(null), width: 160);
+            }
 
             UiFactory.SectionTitle(body, "Reset");
             var resetRow = UiFactory.SettingRow(body, "Reset everything", "Every limit back to vanilla. Your menu key stays.", phone, out _);
@@ -55,6 +60,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
             if (ReadOnly) return;
             var fresh = ModSettings.CreateDefault();
             fresh.Hotkey = Core.Settings.Hotkey;
+            fresh.HasTutorialCompleted = Core.Settings.HasTutorialCompleted;
             Core.ReplaceSettings(fresh);
         }
 

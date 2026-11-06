@@ -149,6 +149,25 @@ namespace SCH1_StackLimitPlus.UI
             return b;
         }
 
+        // A "?" inside a thin circle, sized like the close button.
+        public static Button HelpButton(Transform parent, Action onClick)
+        {
+            var hit = Panel(parent, Color.white, rounded: true, name: "Help");
+            var b = hit.gameObject.AddComponent<Button>();
+            b.targetGraphic = hit;
+            b.colors = Colors(new Color(1, 1, 1, 0), Theme.Hover, Theme.Pressed);
+            b.navigation = new Navigation { mode = Navigation.Mode.None };
+            var ring = Panel(hit.transform, Theme.TextMuted, name: "Ring");
+            ring.sprite = Theme.Ring;
+            ring.raycastTarget = false;
+            ring.rectTransform.sizeDelta = new Vector2(20, 20);
+            var q = Text(hit.transform, "?", 13, Theme.TextMuted, FontStyles.Bold, TextAlignmentOptions.Center);
+            Stretch(q.rectTransform);
+            Size(hit, width: 32, height: 32);
+            Listen(b, onClick);
+            return b;
+        }
+
         // Hides without collapsing its layout space, so neighbouring fields don't shift.
         public static void SetShown(Component c, bool shown)
         {

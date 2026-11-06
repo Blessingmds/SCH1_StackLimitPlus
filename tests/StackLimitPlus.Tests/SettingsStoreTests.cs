@@ -69,6 +69,18 @@ public class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void TutorialFlagMissingMeansNotCompleted()
+    {
+        File.WriteAllText(Json, "{\"Global\":50}"); // a 2.0 file written before the tutorial existed
+        Assert.False(NewStore().Load().HasTutorialCompleted);
+
+        var s = ModSettings.CreateDefault();
+        s.HasTutorialCompleted = true;
+        NewStore().Save(s);
+        Assert.True(NewStore().Load().HasTutorialCompleted);
+    }
+
+    [Fact]
     public void ClampsOutOfRange()
     {
         File.WriteAllText(Json, "{\"Global\":0,\"Items\":{\"baggie\":99999},\"AtmWeeklyLimit\":-5,\"DryingRackCapacity\":0}");

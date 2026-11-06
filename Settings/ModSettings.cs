@@ -19,6 +19,8 @@ namespace SCH1_StackLimitPlus.Settings
         public ObjectSlotMode SlotMode { get; set; }
         public int SlotCustom { get; set; } = 100;
         public int? Capacity { get; set; }
+        // a worker's bed case: cash per slot for this one case, over the global CashPerSlot
+        public float? CashPerSlot { get; set; }
     }
 
     // Excluded = vanilla stack of 1 or an internal per-unit count (magazines); global/category limits skip it.
@@ -37,6 +39,8 @@ namespace SCH1_StackLimitPlus.Settings
         public Dictionary<string, int> MixerMaxMix { get; set; } = new();
         public Dictionary<string, ObjectSetting> Objects { get; set; } = new();
         public string Hotkey { get; set; } = "F6";
+        // personal, like Hotkey: set when the player finishes or skips the walkthrough; missing in older files = false
+        public bool HasTutorialCompleted { get; set; }
         // F6 window size in reference pixels (1080p); personal, never synced
         public int? WindowWidth { get; set; }
         public int? WindowHeight { get; set; }

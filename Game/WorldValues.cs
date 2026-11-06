@@ -36,8 +36,12 @@ namespace SCH1_StackLimitPlus.Game
         public static void ApplyConstants(ModSettings s)
         {
             _cashPerSlot.Set(s.CashPerSlot);
+            LookTarget.InvalidateCash(); // a per-case value may be due again on the next frame
             _atmLimit.Set(s.AtmWeeklyLimit);
         }
+
+        // per-case override (LookTarget.TickCash); null = vanilla
+        public static void SetCashPerSlot(float? value) => _cashPerSlot.Set(value);
 
         public static void Apply(ModSettings s)
         {

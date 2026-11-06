@@ -23,7 +23,29 @@ namespace SCH1_StackLimitPlus.UI
         public RectTransform Header { get; }
         public string? CurrentTitle => _current >= 0 ? _tabs[_current].tab.Title : null;
 
-        public MenuView(RectTransform root, bool phone, Action? onClose)
+        public RectTransform Sidebar => _sidebar;
+        public RectTransform ContentArea => _contentArea;
+        public Button? HelpButton { get; }
+
+        public bool IsAvailable(string title) => _tabs.Exists(t => t.tab.Title == title && t.tab.Available);
+
+        public RectTransform? TabButton(string title)
+        {
+            int i = _tabs.FindIndex(t => t.tab.Title == title);
+            return i >= 0 ? _tabs[i].button.GetComponent<RectTransform>() : null;
+        }
+
+        // a named child of the visible tab (rows are named "Setting:<label>"), for the tutorial spotlight
+        public RectTransform? FindInCurrentTab(string name)
+        {
+            var content = _current >= 0 ? _tabs[_current].content : null;
+            if (content == null) return null;
+            foreach (var rt in content.GetComponentsInChildren<RectTransform>(true))
+                if (rt.name == name) return rt;
+            return null;
+        }
+
+        public MenuView(RectTransform root, bool phone, Action? onClose, Action<string?>? onHelp = null)
         {
             Root = root;
             _phone = phone;
@@ -50,6 +72,7 @@ namespace SCH1_StackLimitPlus.UI
             UiFactory.Size(version, width: version.preferredWidth + 2, height: 28);
             var spacer = UiFactory.Node("Spacer", Header);
             UiFactory.Size(spacer, height: 1, flexWidth: 1);
+            if (onHelp != null) HelpButton = UiFactory.HelpButton(Header, () => onHelp(CurrentTitle));
             if (onClose != null) UiFactory.CloseButton(Header, onClose);
 
             var headerLine = UiFactory.Panel(window.transform, Theme.Line, name: "HeaderLine");

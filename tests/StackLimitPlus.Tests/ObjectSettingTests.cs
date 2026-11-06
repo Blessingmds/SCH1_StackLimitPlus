@@ -22,6 +22,16 @@ public class ObjectSettingTests
     }
 
     [Fact]
+    public void CashPerSlotKeepsEntryUntilCleared()
+    {
+        var s = ModSettings.CreateDefault();
+        ObjectSettings.Update(s, "bed", o => o.CashPerSlot = 5000);
+        Assert.Equal(5000, s.Objects["bed"].CashPerSlot);
+        ObjectSettings.Update(s, "bed", o => o.CashPerSlot = null);
+        Assert.False(s.Objects.ContainsKey("bed"));
+    }
+
+    [Fact]
     public void GetReturnsDefaultsWithoutAdding()
     {
         var s = ModSettings.CreateDefault();

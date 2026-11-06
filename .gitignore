@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# AI tooling notes: keep local, never commit
+docs/superpowers/
+.claude/
+CLAUDE.md

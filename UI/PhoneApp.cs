@@ -2,6 +2,8 @@ using System;
 using Il2CppScheduleOne.DevUtilities;
 using Il2CppScheduleOne.UI.Phone;
 using Il2CppScheduleOne.UI.Phone.Delivery;
+using Il2CppInterop.Runtime;
+using Il2CppScheduleOne;
 using Il2CppTMPro;
 using MelonLoader;
 using UnityEngine;
@@ -21,7 +23,40 @@ namespace SCH1_StackLimitPlus.UI
         bool _loggedHierarchy;
         bool _fallback;
 
-        public bool IsOpen => _root != null && _root.activeSelf;
+        Collider? _homeButton;
+        Camera? _phoneCamera;
+        Canvas? _canvas;
+        GraphicRaycaster? _raycaster;
+        public bool IsOpen => _root != null && _canvas != null && _canvas.enabled;
+
+        // Hide by switching our own nested canvas off, never the GameObject: re-activating hundreds of
+        // item rows makes Unity rebuild all their layout and text, a 300-600ms hitch on every open/close.
+        void SetVisible(bool on)
+        {
+            _canvas!.enabled = on;
+            _raycaster!.enabled = on && !_locked;
+        }
+
+        // the tutorial shows the app without letting the player change anything in it
+        bool _locked;
+        public bool Locked
+        {
+            get => _locked;
+            set
+            {
+                _locked = value;
+                if (_raycaster != null && _canvas != null) _raycaster.enabled = _canvas.enabled && !value;
+            }
+        }
+
+        // closes the app and puts the phone away (the tutorial's phone step)
+        public void CloseWithPhone()
+        {
+            Close();
+            // the game's own "put the phone away" (Phone.SetIsOpen alone left it raised behind the menu)
+            try { UnityEngine.Object.FindObjectOfType<Il2CppScheduleOne.UI.GameplayMenu>()?.Close(); }
+            catch (Exception ex) { Core.ErrorOnce($"Closing the phone failed: {ex.Message}"); }
+        }
 
         public PhoneApp(Func<MenuView, bool> addTabs) => _addTabs = addTabs;
 
@@ -37,7 +72,8 @@ namespace SCH1_StackLimitPlus.UI
                 if (!IsOpen) return;
                 var phone = PlayerSingleton<Phone>.Instance;
                 if (phone == null || !phone.IsOpen) Close();
-                else if (Input.GetKeyDown(KeyCode.Escape) && !Il2CppScheduleOne.GameInput.IsTyping) Close();
+                else if (Input.GetMouseButtonDown(0) && _homeButton != null && _phoneCamera != null
+                    && _homeButton.Raycast(_phoneCamera.ScreenPointToRay(Input.mousePosition), out _, 100f)) Close();
             }
             catch (Exception ex)
             {
@@ -94,9 +130,11 @@ namespace SCH1_StackLimitPlus.UI
             {
                 if (_root == null) Build();
                 if (_root == null || _menu == null) { _fallback = true; Core.Overlay.Open(null); return; }
-                PlayerSingleton<Phone>.Instance?.SetIsHorizontal(true);
+                var phone = PlayerSingleton<Phone>.Instance;
+                phone?.SetIsHorizontal(true);
+                phone?.SetLookOffsetMultiplier(0.6f); // same close-up view as the game's Map app
                 _home?.SetIsOpen(false);
-                _root.SetActive(true);
+                SetVisible(true);
                 _root.transform.SetAsLastSibling();
                 RevealParents();
                 Core.Catalog.Rescan();
@@ -113,15 +151,24 @@ namespace SCH1_StackLimitPlus.UI
         public void Close()
         {
             if (!IsOpen) return;
-            _root!.SetActive(false);
+            SetVisible(false);
             RestoreParents();
-            Il2CppScheduleOne.GameInput.IsTyping = false;
+            GameInput.IsTyping = false;
             try
             {
-                PlayerSingleton<Phone>.Instance?.SetIsHorizontal(false);
+                var phone = PlayerSingleton<Phone>.Instance;
+                phone?.SetIsHorizontal(false);
+                phone?.SetLookOffsetMultiplier(1f);
                 _home?.SetIsOpen(true);
             }
             catch (Exception ex) { Core.ErrorOnce($"Closing the phone app failed: {ex.Message}"); }
+        }
+
+        void OnExit(ExitAction action)
+        {
+            if (action.Used || !IsOpen) return;
+            action.Used = true;
+            Close();
         }
 
         void Build()
@@ -137,6 +184,9 @@ namespace SCH1_StackLimitPlus.UI
 
             var shell = UiFactory.Node("StackLimitPlusApp", appRect.parent);
             CopyRect(appRect, shell);
+            _canvas = shell.gameObject.AddComponent<Canvas>(); // nested: inherits the phone's sorting, hides cheaply
+            _raycaster = shell.gameObject.AddComponent<GraphicRaycaster>();
+            _canvas.enabled = _raycaster.enabled = false;
             // opaque base: the phone's own apps cover the home screen completely
             var root = UiFactory.Panel(shell, new Color(0.15f, 0.15f, 0.15f, 1f), name: "Screen").rectTransform;
             CopyRect(container, root);
@@ -150,7 +200,20 @@ namespace SCH1_StackLimitPlus.UI
             scaled.localScale = Vector3.one * scale;
             _menu = new MenuView(scaled, phone: true, onClose: Close);
             _addTabs(_menu);
-            _root.SetActive(false);
+
+            // close like the game's own apps: on the phone model's home button, the close-all-apps broadcast and the exit input
+            var phone = PlayerSingleton<Phone>.Instance;
+            if (phone != null)
+            {
+                phone.closeApps += (Il2CppSystem.Action)(Action)Close;
+                // the home button is a 3D collider on the phone model (Phone/phone/Button), clicked via raycast, not a UI Button
+                foreach (var c in phone.GetComponentsInChildren<Collider>(true))
+                    if (c.name == "Button") { _homeButton = c; break; }
+                _phoneCamera = phone.GetComponentInParent<Camera>();
+                if (_homeButton == null || _phoneCamera == null)
+                    Core.ErrorOnce("Phone home button not found; use the X to close the StackLimit app.");
+            }
+            GameInput.RegisterExitListener(DelegateSupport.ConvertDelegate<GameInput.ExitDelegate>(new Action<ExitAction>(OnExit)), 10);
         }
 
         // The game shows its apps canvas only while one of its own apps is open; ours isn't one of them,
