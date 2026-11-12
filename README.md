@@ -36,8 +36,8 @@ The host's settings are sent to everyone in the lobby, so all players use the sa
 ## 📦 Installation
 
 1. Install [MelonLoader](https://melonwiki.xyz/) (0.7 or newer) for Schedule I.
-2. Download the file for your game branch: **IL2CPP** for the normal game, **Mono** for the `alternate` beta branch.
-3. Extract it into your `Schedule I` folder. It puts `SCH1_StackLimitPlus.dll` in `Mods/`, and MDSAPI (which it needs, included in the download) in `Plugins/` and `Mods/MDSAPI/`.
+2. Download the zip. It works on both the normal game and the `alternate` beta branch, and you can switch branches any time without reinstalling.
+3. Extract it into your `Schedule I` folder. It puts StackLimit Plus in `Mods/StackLimitPlus/`, and MDSAPI (which it needs, included in the download) in `Plugins/` and `Mods/MDSAPI/`. Upgrading from an older version? Delete the old `Mods/SCH1_StackLimitPlus.dll`.
 4. Start the game, load a save and press **F6**.
 
 Settings are saved to `Schedule I/UserData/StackLimitPlus.json`.

@@ -85,10 +85,13 @@
   </ItemGroup>
 
   <!-- Opt in from local.build.props with <AutomateLocalDeployment>true</AutomateLocalDeployment>.
-       Copies into Mods only the build that matches the branch you are on. -->
+       Both builds live side by side in Mods\StackLimitPlus\<Il2Cpp|Mono>; MDSAPILoader
+       (0.2.1+) loads the one matching the branch at every launch, so switching branch needs
+       no rebuild or copy. A copy straight in Mods from older installs is removed. -->
   <Target Name="DeployLocal" AfterTargets="Build" Condition="'$(AutomateLocalDeployment)' == 'true'">
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\Mods"
-          Condition="('$(Configuration)' == 'Il2Cpp' AND Exists('$(GameDir)\GameAssembly.dll')) OR ('$(Configuration)' == 'Mono' AND !Exists('$(GameDir)\GameAssembly.dll'))" />
+    <MakeDir Directories="$(GameDir)\Mods\StackLimitPlus\$(Configuration)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\Mods\StackLimitPlus\$(Configuration)" />
+    <Delete Files="$(GameDir)\Mods\$(TargetFileName)" />
   </Target>
 
 </Project>
