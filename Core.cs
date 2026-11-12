@@ -84,7 +84,6 @@ public class Core : MelonMod
             {
                 _playerReady = true;
                 PlayerReady = true;
-                Catalog.Rescan();
                 ApplyAll();
                 MelonLogger.Msg($"Local player detected. Applied limits to {Catalog.Items.Count} items.");
                 if (!Settings.HasTutorialCompleted) _notice.Show(Settings.Hotkey);

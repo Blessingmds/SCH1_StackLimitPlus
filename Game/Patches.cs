@@ -31,6 +31,21 @@ namespace SCH1_StackLimitPlus.Game
 
 namespace SCH1_StackLimitPlus.Game
 {
+    // Every runtime product (mixes, on load and while playing, host and co-op) is registered here right after it is
+    // cloned. Limit it now: some game code (TryInsertItemIntoSet) reads StackLimit without asking a slot.
+    [HarmonyPatch(typeof(Il2CppScheduleOne.Registry), nameof(Il2CppScheduleOne.Registry.AddToRegistry))]
+    static class RegistryAddPatch
+    {
+        static void Postfix(ItemDefinition item)
+        {
+            try { if (item != null) ItemCatalog.Track(item); }
+            catch (Exception ex) { Core.ErrorOnce($"Could not limit new item: {ex.Message}"); }
+        }
+    }
+}
+
+namespace SCH1_StackLimitPlus.Game
+{
     // Dropping onto a matching stack, the game adds one at a time up to the item's StackLimit (the max over all places),
     // never asking the slot. Clamp the dragged amount to what the target slot takes, so per-place/object limits hold.
     [HarmonyPatch(typeof(Il2CppScheduleOne.UI.Items.ItemUIManager), nameof(Il2CppScheduleOne.UI.Items.ItemUIManager.EndDrag))]

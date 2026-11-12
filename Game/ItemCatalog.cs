@@ -28,8 +28,12 @@ namespace SCH1_StackLimitPlus.Game
                 if (def == null || !_seen.Add(def.Pointer)) continue;
                 if (string.IsNullOrEmpty(def.ID)) continue;
                 // re-add even if known: assets can be reloaded as new objects between scenes
-                var info = Info(def);
-                _items[def.ID] = new CatalogItem(def, info, def.Name ?? def.ID, def.Icon, GroupOf(def, info));
+                try
+                {
+                    var info = Info(def);
+                    _items[def.ID] = new CatalogItem(def, info, def.Name ?? def.ID, def.Icon, GroupOf(def, info));
+                }
+                catch (System.Exception ex) { Core.ErrorOnce($"Could not read item {def.ID}: {ex.Message}"); }
             }
             Items = _items.Values.Where(i => i.Def != null).OrderBy(i => i.Name).ToList();
         }
@@ -39,37 +43,66 @@ namespace SCH1_StackLimitPlus.Game
 
         public static void ClearPointerCache() { InfoByPointer.Clear(); _seen.Clear(); }
 
-        public static ItemInfo CachedInfo(BaseItemDefinition def)
+        public static ItemInfo CachedInfo(BaseItemDefinition def) =>
+            InfoByPointer.TryGetValue(def.Pointer, out var info) ? info : Track(def);
+
+        // mixed products are created at runtime (on load, after our apply pass, or when mixing): limit them on first sight
+        public static ItemInfo Track(BaseItemDefinition def)
         {
-            if (!InfoByPointer.TryGetValue(def.Pointer, out var info))
-                InfoByPointer[def.Pointer] = info = Info(def);
+            var info = InfoByPointer[def.Pointer] = Info(def);
+            def.StackLimit = LimitResolver.DefinitionLimit(Core.Settings, info, Core.Settings.Objects.Keys);
             return info;
         }
 
         public static ItemInfo Info(BaseItemDefinition def)
         {
             if (!VanillaLimits.TryGetValue(def.ID, out var vanilla))
-                VanillaLimits[def.ID] = vanilla = def.StackLimit;
+                VanillaLimits[def.ID] = vanilla = MixSourceVanilla(def) ?? def.StackLimit;
             bool hasOwnCount = def.TryCast<IntegerItemDefinition>() != null;
             return new ItemInfo(def.ID, def.Category.ToString(), vanilla, vanilla <= 1 || hasOwnCount);
+        }
+
+        // A mix is a clone of its drug type's default product, so it copies that product's current (possibly
+        // already modded) StackLimit. Its vanilla is the default's vanilla, not the copied value.
+        static int? MixSourceVanilla(BaseItemDefinition def)
+        {
+            var product = def.TryCast<Il2CppScheduleOne.Product.ProductDefinition>();
+            var pm = Il2CppScheduleOne.DevUtilities.NetworkSingleton<Il2CppScheduleOne.Product.ProductManager>.Instance;
+            if (product == null || pm == null) return null;
+            Il2CppScheduleOne.Product.ProductDefinition? source = DrugTypeOf(product) switch
+            {
+                "Marijuana" => pm.DefaultWeed,
+                "Methamphetamine" => pm.DefaultMeth,
+                "Cocaine" => pm.DefaultCocaine,
+                "Shrooms" => pm.DefaultShroom,
+                _ => null,
+            };
+            if (source == null || source.ID == def.ID) return null;
+            return VanillaLimits.TryGetValue(source.ID, out var v) ? v : source.StackLimit;
         }
 
         static string GroupOf(ItemDefinition def, ItemInfo info)
         {
             var product = def.TryCast<Il2CppScheduleOne.Product.ProductDefinition>();
             if (product == null) return info.Category;
-            return product.DrugType.ToString() switch
+            return DrugTypeOf(product) switch
             {
+                null => info.Category,
                 "Marijuana" => "Weed",
                 "Methamphetamine" => "Meth",
                 var other => other,
             };
         }
 
+        // the game's DrugType getter reads DrugTypes[0] and throws on templates that were never initialized
+        static string? DrugTypeOf(Il2CppScheduleOne.Product.ProductDefinition p) =>
+            p.DrugTypes != null && p.DrugTypes.Count > 0 ? p.DrugTypes[0].DrugType.ToString() : null;
+
         public bool TryGet(string id, out CatalogItem item) => _items.TryGetValue(id, out item!);
 
         public void Apply(ModSettings s)
         {
+            Rescan(); // pick up products mixed since the last scan
             var objects = s.Objects.Keys.ToList();
             foreach (var item in Items)
             {
