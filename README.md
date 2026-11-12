@@ -57,6 +57,18 @@ Use the *Pockets only* preset in **Places**.
 **How do I go back to normal?**
 **Settings → Reset everything** puts every limit back to vanilla. Your menu key stays.
 
+**My mixed products won't stack higher than vanilla.**
+Update to 2.0.1. Older versions sometimes missed mixes when a save loaded, until you changed a setting.
+
+---
+
+## 📝 Changelog
+
+### 2.0.1
+- **Fixed:** mixed products sometimes stayed at the vanilla stack size after loading a save. New mixes now get your limits right away, both when a save loads and when you make one.
+- **Fixed:** a mix made after the game had loaded could keep a stack size you had already lowered, and ignored places set to *Vanilla*.
+- **Fixed:** an error in the log on every save load.
+
 ---
 
 ## 🔓 Open source
