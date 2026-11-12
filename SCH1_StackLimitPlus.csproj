@@ -43,6 +43,10 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Mono'">
     <TargetFramework Condition="'$(TargetFramework)' == ''">netstandard2.1</TargetFramework>
     <DefineConstants>$(DefineConstants);MONO</DefineConstants>
+    <!-- The Mono branch ships a newer TextMeshPro that marks enableWordWrapping obsolete in
+         favour of textWrappingMode; the IL2CPP branch's TextMeshPro has only the old property,
+         so the shared source keeps it. -->
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

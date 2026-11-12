@@ -321,7 +321,9 @@ namespace SCH1_StackLimitPlus.UI
             };
             var inner = Rect.MinMaxRect(screen.xMin + Edge + size.x / 2, screen.yMin + Edge + size.y / 2,
                                         screen.xMax - Edge - size.x / 2, screen.yMax - Edge - size.y / 2);
-            var pos = candidates.FirstOrDefault(inner.Contains, candidates[2]);
+            // FirstOrDefault(predicate, default) is .NET 6+; the Mono build targets netstandard2.1
+            var pos = candidates[2];
+            foreach (var c in candidates) if (inner.Contains(c)) { pos = c; break; }
             _box.anchoredPosition = new Vector2(Mathf.Clamp(pos.x, inner.xMin, inner.xMax), Mathf.Clamp(pos.y, inner.yMin, inner.yMax));
         }
 
