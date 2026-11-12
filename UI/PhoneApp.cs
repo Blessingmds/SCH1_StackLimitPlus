@@ -1,10 +1,12 @@
 using System;
-using Il2CppScheduleOne.DevUtilities;
-using Il2CppScheduleOne.UI.Phone;
-using Il2CppScheduleOne.UI.Phone.Delivery;
-using Il2CppInterop.Runtime;
-using Il2CppScheduleOne;
+using MDSAPI.Players;
+using MDSAPI.Unity;
+using Phone = MDSAPI.UI.Phone;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,7 +20,6 @@ namespace SCH1_StackLimitPlus.UI
         GameObject? _icon;
         GameObject? _root;
         MenuView? _menu;
-        HomeScreen? _home;
         float _retry;
         bool _loggedHierarchy;
         bool _fallback;
@@ -54,7 +55,7 @@ namespace SCH1_StackLimitPlus.UI
         {
             Close();
             // the game's own "put the phone away" (Phone.SetIsOpen alone left it raised behind the menu)
-            try { UnityEngine.Object.FindObjectOfType<Il2CppScheduleOne.UI.GameplayMenu>()?.Close(); }
+            try { Phone.PutAway(); }
             catch (Exception ex) { Core.ErrorOnce($"Closing the phone failed: {ex.Message}"); }
         }
 
@@ -70,8 +71,7 @@ namespace SCH1_StackLimitPlus.UI
                     CreateIcon();
                 }
                 if (!IsOpen) return;
-                var phone = PlayerSingleton<Phone>.Instance;
-                if (phone == null || !phone.IsOpen) Close();
+                if (!Phone.IsOpen) Close();
                 else if (Input.GetMouseButtonDown(0) && _homeButton != null && _phoneCamera != null
                     && _homeButton.Raycast(_phoneCamera.ScreenPointToRay(Input.mousePosition), out _, 100f)) Close();
             }
@@ -88,10 +88,11 @@ namespace SCH1_StackLimitPlus.UI
 
         void CreateIcon()
         {
-            _home = UnityEngine.Object.FindObjectOfType<HomeScreen>();
-            if (_home == null || _home.appIconPrefab == null || _home.appIconContainer == null) return;
+            var prefab = Phone.AppIconPrefab;
+            var container = Phone.AppIconContainer;
+            if (prefab == null || container == null) return;
 
-            _icon = UnityEngine.Object.Instantiate(_home.appIconPrefab, _home.appIconContainer);
+            _icon = UnityEngine.Object.Instantiate(prefab, container);
             _icon.name = "StackLimitPlusIcon";
             if (!_loggedHierarchy)
             {
@@ -116,7 +117,7 @@ namespace SCH1_StackLimitPlus.UI
 
         static string Describe(Transform t, int depth)
         {
-            var parts = t.name + "[" + string.Join(",", System.Linq.Enumerable.Select(t.GetComponents<Component>(), c => c.GetIl2CppType().Name)) + "]";
+            var parts = t.name + "[" + string.Join(",", System.Linq.Enumerable.Select(t.GetComponents<Component>(), c => Cross.TypeName(c))) + "]";
             if (depth > 3 || t.childCount == 0) return parts;
             var children = new string[t.childCount];
             for (int i = 0; i < t.childCount; i++) children[i] = Describe(t.GetChild(i), depth + 1);
@@ -130,10 +131,9 @@ namespace SCH1_StackLimitPlus.UI
             {
                 if (_root == null) Build();
                 if (_root == null || _menu == null) { _fallback = true; Core.Overlay.Open(null); return; }
-                var phone = PlayerSingleton<Phone>.Instance;
-                phone?.SetIsHorizontal(true);
-                phone?.SetLookOffsetMultiplier(0.6f); // same close-up view as the game's Map app
-                _home?.SetIsOpen(false);
+                Phone.SetHorizontal(true);
+                Phone.SetLookOffset(0.6f); // same close-up view as the game's Map app
+                Phone.SetHomeScreenOpen(false);
                 SetVisible(true);
                 _root.transform.SetAsLastSibling();
                 RevealParents();
@@ -153,34 +153,31 @@ namespace SCH1_StackLimitPlus.UI
             if (!IsOpen) return;
             SetVisible(false);
             RestoreParents();
-            GameInput.IsTyping = false;
+            Controls.IsTyping = false;
             try
             {
-                var phone = PlayerSingleton<Phone>.Instance;
-                phone?.SetIsHorizontal(false);
-                phone?.SetLookOffsetMultiplier(1f);
-                _home?.SetIsOpen(true);
+                Phone.SetHorizontal(false);
+                Phone.SetLookOffset(1f);
+                Phone.SetHomeScreenOpen(true);
             }
             catch (Exception ex) { Core.ErrorOnce($"Closing the phone app failed: {ex.Message}"); }
         }
 
-        void OnExit(ExitAction action)
+        // the game's back input (Esc): consumed only while our app is showing
+        bool OnExit()
         {
-            if (action.Used || !IsOpen) return;
-            action.Used = true;
+            if (!IsOpen) return false;
             Close();
+            return true;
         }
+
+        static bool _exitRegistered;
 
         void Build()
         {
             // Mirror the Deliveries app: a sibling of its object, with its rect, holding a copy of its screen container's rect.
             // (Parenting inside DeliveryApp itself left us hidden whenever that app was closed.)
-            DeliveryApp? reference = null;
-            foreach (var app in Resources.FindObjectsOfTypeAll<DeliveryApp>())
-                if (app.gameObject.scene.IsValid()) { reference = app; break; }
-            var appRect = reference?.GetComponent<RectTransform>();
-            var container = reference?.appContainer;
-            if (appRect == null || container == null || appRect.parent == null) { Core.ErrorOnce("Phone app area not found."); return; }
+            if (!Phone.TryGetAppArea(out var appRect, out var container)) { Core.ErrorOnce("Phone app area not found."); return; }
 
             var shell = UiFactory.Node("StackLimitPlusApp", appRect.parent);
             CopyRect(appRect, shell);
@@ -202,10 +199,10 @@ namespace SCH1_StackLimitPlus.UI
             _addTabs(_menu);
 
             // close like the game's own apps: on the phone model's home button, the close-all-apps broadcast and the exit input
-            var phone = PlayerSingleton<Phone>.Instance;
+            var phone = Phone.Component;
             if (phone != null)
             {
-                phone.closeApps += (Il2CppSystem.Action)(Action)Close;
+                Phone.OnCloseApps(Close);
                 // the home button is a 3D collider on the phone model (Phone/phone/Button), clicked via raycast, not a UI Button
                 foreach (var c in phone.GetComponentsInChildren<Collider>(true))
                     if (c.name == "Button") { _homeButton = c; break; }
@@ -213,7 +210,8 @@ namespace SCH1_StackLimitPlus.UI
                 if (_homeButton == null || _phoneCamera == null)
                     Core.ErrorOnce("Phone home button not found; use the X to close the StackLimit app.");
             }
-            GameInput.RegisterExitListener(DelegateSupport.ConvertDelegate<GameInput.ExitDelegate>(new Action<ExitAction>(OnExit)), 10);
+            // the game keeps exit listeners for the whole session: register once
+            if (!_exitRegistered) _exitRegistered = Controls.AddExitHandler(OnExit, 10);
         }
 
         // The game shows its apps canvas only while one of its own apps is open; ours isn't one of them,
@@ -224,6 +222,7 @@ namespace SCH1_StackLimitPlus.UI
         void RevealParents()
         {
             RestoreParents();
+            var phoneTransform = Phone.Component?.transform;
             var log = new System.Text.StringBuilder("[phone] parents:");
             for (var t = _root!.transform.parent; t != null; t = t.parent)
             {
@@ -239,7 +238,7 @@ namespace SCH1_StackLimitPlus.UI
                     group.alpha = 1f;
                     _restore.Add(() => group.alpha = alpha);
                 }
-                if (t.GetComponent<Phone>() != null) break;
+                if (phoneTransform != null && t == phoneTransform) break;
             }
             if (!_loggedParents) { _loggedParents = true; MelonLogger.Msg(log.ToString()); }
         }

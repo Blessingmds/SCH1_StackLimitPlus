@@ -1,8 +1,13 @@
 using System;
 using System.Collections.Generic;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using SCH1_StackLimitPlus.Game;
 using SCH1_StackLimitPlus.Settings;
+using MDSAPI.Unity;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -54,7 +59,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
                 var value = get(Core.Settings);
                 bool known = WorldValues.Vanilla.TryGetValue(key, out var vanilla);
                 UiFactory.SetNumber(field, value, vanilla);
-                if (!known) field.placeholder.Cast<TextMeshProUGUI>().text = "Vanilla";
+                if (!known) field.placeholder.As<TextMeshProUGUI>()!.text = "Vanilla";
                 field.interactable = !ReadOnly;
                 UiFactory.SetShown(reset, value.HasValue && !ReadOnly);
             }

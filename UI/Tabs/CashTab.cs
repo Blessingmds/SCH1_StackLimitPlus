@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using SCH1_StackLimitPlus.Game;
 using SCH1_StackLimitPlus.Settings;
 using UnityEngine;

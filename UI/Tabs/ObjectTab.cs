@@ -1,4 +1,8 @@
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using SCH1_StackLimitPlus.Game;
 using SCH1_StackLimitPlus.Settings;
 using UnityEngine;
@@ -31,7 +35,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
         public override void Build(RectTransform content, bool phone)
         {
             var body = ScrollBody(content, phone);
-            _name = UiFactory.Text(body, "", Theme.Title, Theme.Text, Il2CppTMPro.FontStyles.Bold);
+            _name = UiFactory.Text(body, "", Theme.Title, Theme.Text, FontStyles.Bold);
             UiFactory.Size(_name, height: 30);
             _place = UiFactory.Text(body, "", Theme.Small, Theme.TextMuted);
             UiFactory.Size(_place, height: 20);
@@ -119,7 +123,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
 
         static float MixerInherited(ModSettings s)
         {
-            var type = T!.Item.GetIl2CppType().Name;
+            var type = T!.Item.TypeName;
             if (s.MixerMaxMix.TryGetValue(type, out var v)) return v;
             return WorldValues.Vanilla.TryGetValue(WorldValues.MixerKey(type), out var vanilla) ? vanilla : 0;
         }

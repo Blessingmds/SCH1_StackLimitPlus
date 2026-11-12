@@ -24,7 +24,29 @@ namespace SCH1_StackLimitPlus.Settings
     }
 
     // Excluded = vanilla stack of 1 or an internal per-unit count (magazines); global/category limits skip it.
-    public readonly record struct ItemInfo(string Id, string Category, int Vanilla, bool Excluded);
+    // A plain struct, not a record struct: record structs are C# 10, and the Mono build is C# 9.
+    public readonly struct ItemInfo : System.IEquatable<ItemInfo>
+    {
+        public string Id { get; }
+        public string Category { get; }
+        public int Vanilla { get; }
+        public bool Excluded { get; }
+
+        public ItemInfo(string Id, string Category, int Vanilla, bool Excluded)
+        {
+            this.Id = Id; this.Category = Category; this.Vanilla = Vanilla; this.Excluded = Excluded;
+        }
+
+        public void Deconstruct(out string id, out string category, out int vanilla, out bool excluded)
+        {
+            id = Id; category = Category; vanilla = Vanilla; excluded = Excluded;
+        }
+
+        public bool Equals(ItemInfo o) => Id == o.Id && Category == o.Category && Vanilla == o.Vanilla && Excluded == o.Excluded;
+        public override bool Equals(object? obj) => obj is ItemInfo o && Equals(o);
+        public override int GetHashCode() => System.HashCode.Combine(Id, Category, Vanilla, Excluded);
+        public override string ToString() => $"ItemInfo {{ Id = {Id}, Category = {Category}, Vanilla = {Vanilla}, Excluded = {Excluded} }}";
+    }
 
     public class ModSettings
     {

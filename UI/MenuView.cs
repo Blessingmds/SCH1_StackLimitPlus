@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using UnityEngine;
 using UnityEngine.UI;
 

@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
-using Il2CppScheduleOne.ObjectScripts;
-using Il2CppScheduleOne.UI;
-using Il2CppScheduleOne.UI.Items;
+using MDSAPI.Patching;
+using MDSAPI.World;
 using SCH1_StackLimitPlus.Settings;
 
 namespace SCH1_StackLimitPlus.Game
@@ -15,53 +13,61 @@ namespace SCH1_StackLimitPlus.Game
         public const string DryingRack = "DryingRack";
         public static string MixerKey(string typeName) => "Mixer:" + typeName;
 
-        // both are compiled-in consts (CashSlot.MAX_CASH_PER_SLOT, ATM.WeeklyDepositLimit), enforced only by these UI methods
-        static readonly CodeConstant _cashPerSlot = new("Cash per slot", 1000f);
-        static readonly CodeConstant _atmLimit = new("ATM weekly limit", 10000f);
+        const float VanillaCashPerSlot = 1000f, VanillaAtmLimit = 10000f;
 
-        static readonly Dictionary<string, float> _vanilla = new()
+        // both are compiled-in consts (CashSlot.MAX_CASH_PER_SLOT, ATM.WeeklyDepositLimit), enforced only by these UI methods
+        static CodeConstant? _cashPerSlot;
+        static CodeConstant? _atmLimit;
+
+        static readonly Dictionary<string, float> _vanilla = new Dictionary<string, float>
         {
-            [CashPerSlot] = _cashPerSlot.Vanilla,
-            [AtmWeeklyLimit] = _atmLimit.Vanilla,
+            [CashPerSlot] = VanillaCashPerSlot,
+            [AtmWeeklyLimit] = VanillaAtmLimit,
         };
         public static IReadOnlyDictionary<string, float> Vanilla => _vanilla;
 
         public static void Install()
         {
-            _cashPerSlot.Install(typeof(ItemUIManager), "StartDragCash", "EndCashDrag", "AddCashAmount", "SubtractCashAmount");
-            _atmLimit.Install(typeof(ATMInterface), "get_remainingAllowedDeposit", "Update", "SetSelectedAmount", "UpdateAvailableAmounts");
+            _cashPerSlot = CodeConstant.Override("Cash per slot", "UI.Items.ItemUIManager", VanillaCashPerSlot,
+                "StartDragCash", "EndCashDrag", "AddCashAmount", "SubtractCashAmount");
+            _atmLimit = CodeConstant.Override("ATM weekly limit", "UI.ATMInterface", VanillaAtmLimit,
+                "get_remainingAllowedDeposit", "Update", "SetSelectedAmount", "UpdateAvailableAmounts");
         }
 
         // cheap: no scene search
         public static void ApplyConstants(ModSettings s)
         {
-            _cashPerSlot.Set(s.CashPerSlot);
+            _cashPerSlot?.Set(s.CashPerSlot);
             LookTarget.InvalidateCash(); // a per-case value may be due again on the next frame
-            _atmLimit.Set(s.AtmWeeklyLimit);
+            _atmLimit?.Set(s.AtmWeeklyLimit);
         }
 
         // per-case override (LookTarget.TickCash); null = vanilla
-        public static void SetCashPerSlot(float? value) => _cashPerSlot.Set(value);
+        public static void SetCashPerSlot(float? value) => _cashPerSlot?.Set(value);
 
         public static void Apply(ModSettings s)
         {
             ApplyConstants(s);
-            foreach (var rack in UnityEngine.Object.FindObjectsOfType<DryingRack>()) ApplyTo(rack, s);
-            foreach (var mixer in UnityEngine.Object.FindObjectsOfType<MixingStation>()) ApplyTo(mixer, s);
+            foreach (var rack in Stations.All(StationType.DryingRack)) ApplyRack(rack, s);
+            foreach (var mixer in Stations.All(StationType.MixingStation)) ApplyMixer(mixer, s);
         }
 
-        public static void ApplyTo(DryingRack rack, ModSettings s)
+        static void ApplyRack(Buildable rack, ModSettings s)
         {
-            Capture(DryingRack, rack.ItemCapacity);
-            rack.ItemCapacity = ObjectCapacity(s, rack.GUID.ToString()) ?? s.DryingRackCapacity ?? (int)_vanilla[DryingRack];
+            var current = rack.StationCapacity;
+            if (current == null) return;
+            Capture(DryingRack, current.Value);
+            rack.StationCapacity = ObjectCapacity(s, rack.Guid) ?? s.DryingRackCapacity ?? (int)_vanilla[DryingRack];
         }
 
-        public static void ApplyTo(MixingStation mixer, ModSettings s)
+        static void ApplyMixer(Buildable mixer, ModSettings s)
         {
-            var type = mixer.GetIl2CppType().Name;
+            var current = mixer.StationCapacity;
+            if (current == null) return;
+            var type = mixer.TypeName;
             var key = MixerKey(type);
-            Capture(key, mixer.MaxMixQuantity);
-            mixer.MaxMixQuantity = ObjectCapacity(s, mixer.GUID.ToString())
+            Capture(key, current.Value);
+            mixer.StationCapacity = ObjectCapacity(s, mixer.Guid)
                 ?? (s.MixerMaxMix.TryGetValue(type, out var v) ? v : (int)_vanilla[key]);
         }
 

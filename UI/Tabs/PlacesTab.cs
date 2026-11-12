@@ -1,6 +1,11 @@
 using System;
 using System.Collections.Generic;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
+using MDSAPI.Unity;
 using SCH1_StackLimitPlus.Settings;
 using UnityEngine.UI;
 
@@ -123,7 +128,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
         static void ShowField(TMP_InputField field, int value, bool shown)
         {
             field.SetTextWithoutNotify(value.ToString());
-            field.placeholder.Cast<TextMeshProUGUI>().text = "100";
+            field.placeholder.As<TextMeshProUGUI>()!.text = "100";
             UiFactory.SetShown(field, shown);
             field.interactable = !ReadOnly;
             foreach (var b in field.transform.parent.GetComponentsInChildren<Button>()) b.interactable = !ReadOnly;

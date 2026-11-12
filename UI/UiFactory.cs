@@ -1,6 +1,11 @@
 using System;
-using Il2CppScheduleOne;
+using MDSAPI.Players;
+using MDSAPI.Unity;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -98,7 +103,7 @@ namespace SCH1_StackLimitPlus.UI
             return cb;
         }
 
-        public static void Listen(Button b, Action onClick) => b.onClick.AddListener((UnityAction)onClick);
+        public static void Listen(Button b, Action onClick) => Cross.OnClick(b, onClick);
 
         public static Button Button(Transform parent, string label, Action onClick, bool primary = false, float width = -1, float height = 34, string name = "Button")
         {
@@ -216,8 +221,8 @@ namespace SCH1_StackLimitPlus.UI
             bg.color = Color.white;
 
             // stops game hotkeys (hotbar numbers, inventory, our own hotkey) while typing
-            field.onSelect.AddListener((UnityAction<string>)new Action<string>(_ => GameInput.IsTyping = true));
-            field.onDeselect.AddListener((UnityAction<string>)new Action<string>(_ => GameInput.IsTyping = false));
+            Cross.Listen<string>(field.onSelect, _ => Controls.IsTyping = true);
+            Cross.Listen<string>(field.onDeselect, _ => Controls.IsTyping = false);
 
             Size(bg, width: width, height: 34);
             return field;
@@ -229,11 +234,11 @@ namespace SCH1_StackLimitPlus.UI
             var f = Field(parent, width, "Number");
             f.contentType = TMP_InputField.ContentType.IntegerNumber;
             f.characterLimit = max.ToString().Length;
-            f.textComponent.Cast<TextMeshProUGUI>().alignment = TextAlignmentOptions.MidlineRight;
-            f.placeholder.Cast<TextMeshProUGUI>().alignment = TextAlignmentOptions.MidlineRight;
-            f.onEndEdit.AddListener((UnityAction<string>)new Action<string>(value =>
+            f.textComponent.As<TextMeshProUGUI>()!.alignment = TextAlignmentOptions.MidlineRight;
+            f.placeholder.As<TextMeshProUGUI>()!.alignment = TextAlignmentOptions.MidlineRight;
+            Cross.Listen<string>(f.onEndEdit, new Action<string>(value =>
             {
-                GameInput.IsTyping = false;
+                Controls.IsTyping = false;
                 if (string.IsNullOrWhiteSpace(value)) { onCommit(null); return; }
                 if (int.TryParse(value, out var n)) onCommit(Mathf.Clamp(n, min, max));
                 else onCommit(null);
@@ -244,8 +249,8 @@ namespace SCH1_StackLimitPlus.UI
         public static TMP_InputField SearchField(Transform parent, string placeholder, Action<string> onChange, float width = 240)
         {
             var f = Field(parent, width, "Search");
-            f.placeholder.Cast<TextMeshProUGUI>().text = placeholder;
-            f.onValueChanged.AddListener((UnityAction<string>)new Action<string>(onChange));
+            f.placeholder.As<TextMeshProUGUI>()!.text = placeholder;
+            Cross.Listen<string>(f.onValueChanged, onChange);
             return f;
         }
 
@@ -253,7 +258,7 @@ namespace SCH1_StackLimitPlus.UI
         public static void SetNumber(TMP_InputField f, float? value, float inherited)
         {
             f.SetTextWithoutNotify(value.HasValue ? Format(value.Value) : "");
-            f.placeholder.Cast<TextMeshProUGUI>().text = Format(inherited);
+            f.placeholder.As<TextMeshProUGUI>()!.text = Format(inherited);
         }
 
         public static string Format(float v) => Mathf.Approximately(v, Mathf.Round(v)) ? ((long)Mathf.Round(v)).ToString("N0") : v.ToString("N2");

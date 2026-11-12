@@ -1,5 +1,9 @@
 using System.Linq;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using UnityEngine;
 
 namespace SCH1_StackLimitPlus.UI

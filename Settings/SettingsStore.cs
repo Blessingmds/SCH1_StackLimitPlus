@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace SCH1_StackLimitPlus.Settings
 {
@@ -13,10 +13,13 @@ namespace SCH1_StackLimitPlus.Settings
         public const float MaxCash = 1_000_000f;
         public const int MinWindowWidth = 640, MinWindowHeight = 420, MaxWindowSize = 3840;
 
-        public static readonly JsonSerializerOptions Options = new()
+        // Newtonsoft rather than System.Text.Json: the Mono branch has no System.Text.Json.
+        // Same file shape as 2.0.x (property names as declared, enums by name), so old files load.
+        public static readonly JsonSerializerSettings Options = new JsonSerializerSettings
         {
-            WriteIndented = true,
-            Converters = { new JsonStringEnumConverter() },
+            Formatting = Formatting.Indented,
+            Converters = { new StringEnumConverter() },
+            ObjectCreationHandling = ObjectCreationHandling.Replace,
         };
 
         readonly string _jsonPath;
@@ -37,7 +40,7 @@ namespace SCH1_StackLimitPlus.Settings
             ModSettings? s = null;
             if (File.Exists(_jsonPath))
             {
-                try { s = JsonSerializer.Deserialize<ModSettings>(File.ReadAllText(_jsonPath), Options); }
+                try { s = JsonConvert.DeserializeObject<ModSettings>(File.ReadAllText(_jsonPath), Options); }
                 catch (Exception ex)
                 {
                     // keep the broken file so the user can fix it; Save() replaces it on the next change
@@ -60,8 +63,9 @@ namespace SCH1_StackLimitPlus.Settings
             try
             {
                 var tmp = _jsonPath + ".tmp";
-                File.WriteAllText(tmp, JsonSerializer.Serialize(s, Options));
-                File.Move(tmp, _jsonPath, true);
+                File.WriteAllText(tmp, JsonConvert.SerializeObject(s, Options));
+                if (File.Exists(_jsonPath)) File.Replace(tmp, _jsonPath, null);
+                else File.Move(tmp, _jsonPath);
                 LoadFailed = false;
             }
             catch (Exception ex)

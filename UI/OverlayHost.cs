@@ -65,7 +65,7 @@ namespace SCH1_StackLimitPlus.UI
             if (_tutorial != null && !_tutorial.WaitingForQuest) _tutorial.Finish(); // closing mid-tour counts as skipping it
             SetVisible(false);
             _dragging = _resizing = false;
-            Il2CppScheduleOne.GameInput.IsTyping = false;
+            MDSAPI.Players.Controls.IsTyping = false;
             InputBlocker.Unblock();
         }
 
@@ -141,7 +141,7 @@ namespace SCH1_StackLimitPlus.UI
             _tutorial?.TickQuest(); // the phone step runs while this window is closed
             if (!IsOpen || _window == null || _menu == null) return;
             if (_tutorial != null && _tutorial.Running && !_tutorial.WaitingForQuest) { _tutorial.Tick(); return; } // controls locked: no Esc-close, drag or resize
-            if (Input.GetKeyDown(KeyCode.Escape) && !Il2CppScheduleOne.GameInput.IsTyping) { Close(); return; }
+            if (Input.GetKeyDown(KeyCode.Escape) && !MDSAPI.Players.Controls.IsTyping) { Close(); return; }
 
             var canvas = _canvas!.GetComponent<Canvas>();
             float scale = canvas.scaleFactor <= 0 ? 1 : canvas.scaleFactor;

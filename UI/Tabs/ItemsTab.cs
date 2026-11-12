@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using SCH1_StackLimitPlus.Game;
 using SCH1_StackLimitPlus.Settings;
+using MDSAPI.Unity;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -199,7 +204,7 @@ namespace SCH1_StackLimitPlus.UI.Tabs
         static void SetRow(ValueRow row, int? value, int? inherited, string? inheritedText)
         {
             UiFactory.SetNumber(row.Field, value, inherited ?? 0);
-            if (!inherited.HasValue && inheritedText != null) row.Field.placeholder.Cast<TextMeshProUGUI>().text = inheritedText;
+            if (!inherited.HasValue && inheritedText != null) row.Field.placeholder.As<TextMeshProUGUI>()!.text = inheritedText;
             row.Field.interactable = !ReadOnly;
             UiFactory.SetShown(row.Reset, value.HasValue && !ReadOnly);
         }

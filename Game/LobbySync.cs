@@ -1,6 +1,5 @@
 using System;
-using Il2CppScheduleOne.DevUtilities;
-using Il2CppScheduleOne.Networking;
+using MDSAPI.Multiplayer;
 using MelonLoader;
 using SCH1_StackLimitPlus.Settings;
 using UnityEngine;
@@ -26,8 +25,7 @@ namespace SCH1_StackLimitPlus.Game
             _timer = PollSeconds;
             try
             {
-                var lobby = Singleton<Lobby>.Instance;
-                if (lobby == null || !lobby.IsInLobby)
+                if (!Lobby.InLobby)
                 {
                     if (Core.IsClient) Core.RestoreLocalSettings();
                     _lastReceived = null;
@@ -35,17 +33,17 @@ namespace SCH1_StackLimitPlus.Game
                     return;
                 }
 
-                if (lobby.IsHost)
+                if (Lobby.IsHost)
                 {
                     if (!_dirty) return;
                     _dirty = false;
                     var data = SyncCodec.Encode(Core.Settings, MaxBytes, out var truncated);
                     if (truncated) Core.ErrorOnce("Too many per-item/per-object settings to share with other players; those stay host-only.");
-                    lobby.SetLobbyData(Key, data);
+                    Lobby.SetData(Key, data);
                     return;
                 }
 
-                var received = lobby._lobbyService?.GetLobbyData(Key);
+                var received = Lobby.GetData(Key);
                 if (string.IsNullOrEmpty(received))
                 {
                     // host doesn't run the mod (or hasn't published yet): keep our own settings
@@ -55,7 +53,7 @@ namespace SCH1_StackLimitPlus.Game
                 }
                 if (received == _lastReceived) return;
                 _lastReceived = received;
-                Core.ApplyHostSettings(SyncCodec.Decode(received));
+                Core.ApplyHostSettings(SyncCodec.Decode(received!));
                 MelonLogger.Msg("Using the host's StackLimit Plus settings.");
             }
             catch (Exception ex)

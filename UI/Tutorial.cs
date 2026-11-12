@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
+using Newtonsoft.Json;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using SCH1_StackLimitPlus.Settings;
 using UnityEngine;
 using UnityEngine.UI;
@@ -114,7 +118,7 @@ namespace SCH1_StackLimitPlus.UI
             _steps = page == null ? all.Where(s => s.InTour).ToList() : all.Where(s => s.Page == page).ToList();
             if (_steps.Count == 0) return;
             // clients can't change anything, so there is nothing to restore
-            _snapshot = Core.IsClient ? null : JsonSerializer.Serialize(Core.Settings, SettingsStore.Options);
+            _snapshot = Core.IsClient ? null : JsonConvert.SerializeObject(Core.Settings, SettingsStore.Options);
             _versionAtStart = Core.SettingsVersion;
             Running = true;
             _layer.gameObject.SetActive(true);
@@ -133,7 +137,7 @@ namespace SCH1_StackLimitPlus.UI
             Core.PhoneMenu.Locked = false;
             if (_snapshot != null && Core.SettingsVersion != _versionAtStart)
             {
-                var restored = JsonSerializer.Deserialize<ModSettings>(_snapshot, SettingsStore.Options)!;
+                var restored = JsonConvert.DeserializeObject<ModSettings>(_snapshot, SettingsStore.Options)!;
                 restored.Hotkey = Core.Settings.Hotkey; // personal, not part of the test run
                 restored.WindowWidth = Core.Settings.WindowWidth;
                 restored.WindowHeight = Core.Settings.WindowHeight;
@@ -247,7 +251,7 @@ namespace SCH1_StackLimitPlus.UI
         {
             if (!Running || WaitingForQuest) return;
             var step = _steps[_index];
-            bool typing = Il2CppScheduleOne.GameInput.IsTyping;
+            bool typing = MDSAPI.Players.Controls.IsTyping;
             if (!typing && Input.GetKeyDown(KeyCode.Escape)) { Finish(); return; }
             bool waiting = IsWaiting(step) && !_stepDone;
             if (!typing && !waiting && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))) { Next(); return; }
@@ -431,9 +435,8 @@ namespace SCH1_StackLimitPlus.UI
         Button? _next;
         Action? _onNext;
 
-        // left side: a copy of the game's own quest entry (title + objective line), completed with its own animation
-        GameObject? _quest;
-        Il2CppScheduleOne.UI.QuestEntryHUDUI? _entry;
+        // left side: an entry in the game's own quest list (title + objective line), completed with its own animation
+        MDSAPI.UI.HudQuest? _quest;
         static bool _loggedQuest;
 
         public void Show(string text, string sub, string questLine)
@@ -461,48 +464,32 @@ namespace SCH1_StackLimitPlus.UI
             try
             {
                 RemoveQuest();
-                Il2CppScheduleOne.UI.Phone.JournalApp? journal = null;
-                foreach (var j in Resources.FindObjectsOfTypeAll<Il2CppScheduleOne.UI.Phone.JournalApp>())
-                    if (j.gameObject.scene.IsValid()) { journal = j; break; }
-                var hud = UnityEngine.Object.FindObjectOfType<Il2CppScheduleOne.UI.HUD>();
-                if (journal?.QuestHUDUIPrefab == null || journal.QuestEntryHUDUIPrefab == null || hud?.QuestEntryContainer == null) return;
-
-                _quest = UnityEngine.Object.Instantiate(journal.QuestHUDUIPrefab.gameObject, hud.QuestEntryContainer);
-                _quest.name = "StackLimitPlusQuest";
-                var quest = _quest.GetComponent<Il2CppScheduleOne.UI.QuestHUDUI>();
-                quest.MainLabel.text = "StackLimit Plus";
-                var entry = UnityEngine.Object.Instantiate(journal.QuestEntryHUDUIPrefab.gameObject, quest.EntryContainer);
-                _entry = entry.GetComponent<Il2CppScheduleOne.UI.QuestEntryHUDUI>();
-                _entry.MainLabel.text = line;
-                _quest.transform.SetAsFirstSibling();
-                if (!_loggedQuest) { _loggedQuest = true; MelonLoader.MelonLogger.Msg("[tutorial] quest hud: " + Describe(_quest.transform, 0)); }
+                _quest = MDSAPI.UI.HudQuest.Show("StackLimit Plus", line);
+                if (_quest?.Root != null && !_loggedQuest)
+                {
+                    _loggedQuest = true;
+                    MelonLoader.MelonLogger.Msg("[tutorial] quest hud: " + Describe(_quest.Root.transform, 0));
+                }
             }
             catch (Exception ex) { Core.ErrorOnce($"Tutorial objective (quest list) failed: {ex.Message}"); RemoveQuest(); }
         }
 
+        // the game's tick + fade, then it leaves the list like a finished quest
         void CompleteQuest()
         {
-            if (_quest == null) return;
-            try { _entry?.Complete(); } // the game's tick + fade
-            catch (Exception)
-            {
-                if (_entry?.MainLabel != null) _entry.MainLabel.color = new Color(0.56f, 0.85f, 0.56f);
-            }
-            UnityEngine.Object.Destroy(_quest, 2.5f); // then it leaves the list, like a finished quest
+            _quest?.Complete(2.5f);
             _quest = null;
-            _entry = null;
         }
 
         void RemoveQuest()
         {
-            try { if (_quest != null) UnityEngine.Object.Destroy(_quest); } catch (Exception) { }
+            _quest?.Remove();
             _quest = null;
-            _entry = null;
         }
 
         static string Describe(Transform t, int depth)
         {
-            var parts = t.name + "[" + string.Join(",", t.GetComponents<Component>().Select(c => c.GetIl2CppType().Name)) + "]";
+            var parts = t.name + "[" + string.Join(",", t.GetComponents<Component>().Select(c => MDSAPI.Unity.Cross.TypeName(c))) + "]";
             if (depth > 4 || t.childCount == 0) return parts;
             var children = new string[t.childCount];
             for (int i = 0; i < t.childCount; i++) children[i] = Describe(t.GetChild(i), depth + 1);

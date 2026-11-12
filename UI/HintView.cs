@@ -1,6 +1,11 @@
 using System;
-using InteractionCanvas = Il2CppScheduleOne.UI.InteractionCanvas;
+using MDSAPI.UI;
+using MDSAPI.Unity;
+#if MONO
+using TMPro;
+#else
 using Il2CppTMPro;
+#endif
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,7 +18,7 @@ namespace SCH1_StackLimitPlus.UI
     {
         const float LineGap = 4;
 
-        InteractionCanvas? _game;
+        RectTransform? _game; // the game's prompt, which ours copies and follows
         RectTransform? _copy;
         TextMeshProUGUI? _message, _key;
         bool _logged;
@@ -47,10 +52,9 @@ namespace SCH1_StackLimitPlus.UI
 
         void TryClone()
         {
-            _game = UnityEngine.Object.FindObjectOfType<InteractionCanvas>();
-            var container = _game?.Container;
-            if (_game == null || container == null) return;
-            var source = container.GetComponent<RectTransform>();
+            _game = InteractionPrompt.Container;
+            if (_game == null) return;
+            var source = _game;
             var go = UnityEngine.Object.Instantiate(source.gameObject, source.parent);
             go.name = "StackLimitPlusPrompt";
             (go.GetComponent<LayoutElement>() ?? go.AddComponent<LayoutElement>()).ignoreLayout = true;
@@ -58,14 +62,14 @@ namespace SCH1_StackLimitPlus.UI
             if (!_logged) { _logged = true; MelonLogger.Msg("[hint] game prompt: " + Describe(source, 0)); }
             // the game's prompt script would keep redrawing the copy's icon (blank key box): ours is static
             foreach (var c in go.GetComponents<Component>())
-                if (c.GetIl2CppType().Name == "InputPromptsItemUI") UnityEngine.Object.DestroyImmediate(c);
+                if (Cross.TypeName(c) == "InputPromptsItemUI") UnityEngine.Object.DestroyImmediate(c);
 
             // the copy's parts sit at the same paths as the game's (key box: Backdrop + Image + SpriteLabel)
-            _message = Twin(source, _copy, _game.MessageText?.transform);
-            _key = Twin(source, _copy, _game.IconText?.transform);
+            _message = Twin(source, _copy, InteractionPrompt.MessageText);
+            _key = Twin(source, _copy, InteractionPrompt.KeyText);
             _keyParts = Parts(_copy);
             _gameKeyParts = Parts(source);
-            if (_message != null) _message.color = _game.DefaultMessageColor;
+            if (_message != null) _message.color = InteractionPrompt.DefaultMessageColor;
             if (_message == null || _key == null) Core.ErrorOnce("Look hint: game prompt layout changed; text may be missing.");
         }
 
@@ -112,7 +116,7 @@ namespace SCH1_StackLimitPlus.UI
 
         void Follow(string key)
         {
-            var source = _game!.Container.GetComponent<RectTransform>();
+            var source = _game!;
             if (_message != null && _message.text != "Change limit") _message.text = "Change limit";
             if (_key != null && _key.text != key) _key.text = key;
             MirrorKeyBox();
@@ -126,7 +130,7 @@ namespace SCH1_StackLimitPlus.UI
 
         static string Describe(Transform t, int depth)
         {
-            var parts = t.name + "[" + string.Join(",", System.Linq.Enumerable.Select(t.GetComponents<Component>(), c => c.GetIl2CppType().Name)) + "]";
+            var parts = t.name + "[" + string.Join(",", System.Linq.Enumerable.Select(t.GetComponents<Component>(), c => Cross.TypeName(c))) + "]";
             if (depth > 3 || t.childCount == 0) return parts;
             var children = new string[t.childCount];
             for (int i = 0; i < t.childCount; i++) children[i] = Describe(t.GetChild(i), depth + 1);

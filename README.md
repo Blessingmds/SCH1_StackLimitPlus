@@ -36,10 +36,13 @@ The host's settings are sent to everyone in the lobby, so all players use the sa
 ## 📦 Installation
 
 1. Install [MelonLoader](https://melonwiki.xyz/) (0.7 or newer) for Schedule I.
-2. Drop `SCH1_StackLimitPlus.dll` into `Schedule I/Mods/`.
-3. Start the game, load a save and press **F6**.
+2. Download the file for your game branch: **IL2CPP** for the normal game, **Mono** for the `alternate` beta branch.
+3. Extract it into your `Schedule I` folder. It puts `SCH1_StackLimitPlus.dll` in `Mods/`, and MDSAPI (which it needs, included in the download) in `Plugins/` and `Mods/MDSAPI/`.
+4. Start the game, load a save and press **F6**.
 
 Settings are saved to `Schedule I/UserData/StackLimitPlus.json`.
+
+When a new version is out, a notice on the main menu tells you; click it to open the download page. MDSAPI checks GitHub for this at most once a day and never downloads anything itself. Don't want it? Click **Opt out of automated checks** on the notice.
 
 ### Upgrading from 1.x
 Your old stack limit and hotkey are carried over automatically on first launch.
@@ -63,6 +66,13 @@ Update to 2.0.1. Older versions sometimes missed mixes when a save loaded, until
 ---
 
 ## 📝 Changelog
+
+### 2.1.1
+- **New:** runs on the `alternate` (Mono) beta branch as well as the normal game.
+- **Changed:** built on MDSAPI, which is included in the download. When a game update moves something the mod relies on, the fix lands in MDSAPI and the mod keeps working. If a part does break, the log names it and the rest keeps running.
+- **New:** a notice on the main menu tells you when an update is available.
+- **Includes** the 2.0.1 fixes for mixed products.
+- Your settings file carries over as-is.
 
 ### 2.0.1
 - **Fixed:** mixed products sometimes stayed at the vanilla stack size after loading a save. New mixes now get your limits right away, both when a save loads and when you make one.

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Il2CppInterop.Runtime;
+using MDSAPI.Players;
 using MelonLoader;
 using MelonLoader.Utils;
 using SCH1_StackLimitPlus.Game;
@@ -46,24 +46,36 @@ public class Core : MelonMod
 
     public static KeyCode HotkeyCode => Enum.TryParse<KeyCode>(Settings.Hotkey, out var k) ? k : KeyCode.F6;
 
+    // off for the session when the installed MDSAPI is too old (MDSAPI says so on the main menu)
+    private static bool _disabled;
+
     public override void OnInitializeMelon()
     {
+        if (!MDSAPI.MdsApi.Requires("0.2.0", "StackLimit Plus")) { _disabled = true; return; }
+        MDSAPI.Updates.UpdateCheck.Register("StackLimit Plus", Info.Version, "Blessingmds/SCH1_StackLimitPlus",
+            "https://www.nexusmods.com/schedule1/mods/623");
+
         var dir = MelonEnvironment.UserDataDirectory;
         _store = new SettingsStore(Path.Combine(dir, "StackLimitPlus.json"), Path.Combine(dir, "StackLimitPlus.txt"));
         _store.Error += msg => MelonLogger.Error(msg);
         Settings = _store.Load();
         MelonLogger.Msg($"StackLimitPlus loaded. Global limit: {Settings.Global?.ToString() ?? "vanilla"}, hotkey: {Settings.Hotkey}");
 
-        // MelonLoader applies [HarmonyPatch] classes in this assembly by itself
+        // every game hook goes through MDSAPI, which reports any this game version lacks
+        Hooks.Install();
         WorldValues.Install();
         WorldValues.ApplyConstants(Settings);
     }
 
     // a tour cut short by quitting or changing scene still undoes its test-run changes
-    public override void OnApplicationQuit() => Overlay.EndTutorial();
+    public override void OnApplicationQuit()
+    {
+        if (!_disabled) Overlay.EndTutorial();
+    }
 
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
     {
+        if (_disabled) return;
         Overlay.EndTutorial();
         _sceneLoaded = sceneName == "Main";
         _playerReady = false;
@@ -71,12 +83,12 @@ public class Core : MelonMod
         _frameCounter = 0;
         PlaceResolver.ClearCache();
         ItemCatalog.ClearPointerCache();
-        InputBlocker.Reset();
         Theme.ResetCaches();
     }
 
     public override void OnUpdate()
     {
+        if (_disabled) return;
         if (_sceneLoaded && !_playerReady && ++_frameCounter >= CHECK_INTERVAL)
         {
             _frameCounter = 0;
@@ -109,7 +121,7 @@ public class Core : MelonMod
             CaptureHotkey();
             return; // the captured key (e.g. Esc) must not also close the menu this frame
         }
-        else if (Input.GetKeyDown(HotkeyCode) && !Il2CppScheduleOne.GameInput.IsTyping)
+        else if (Input.GetKeyDown(HotkeyCode) && !Controls.IsTyping)
         {
             if (Overlay.IsOpen) Overlay.Close();
             else
@@ -233,11 +245,7 @@ public class Core : MelonMod
     {
         try
         {
-            var players = UnityEngine.Object.FindObjectsOfType(Il2CppType.Of<Il2CppScheduleOne.PlayerScripts.Player>());
-            if (players != null && players.Length > 0) return true;
-
-            var localPlayerObj = GameObject.Find("Player_Local");
-            return localPlayerObj != null && localPlayerObj.activeInHierarchy;
+            return LocalPlayer.Exists;
         }
         catch (Exception ex)
         {

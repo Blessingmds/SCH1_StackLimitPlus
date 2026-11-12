@@ -365,3 +365,6 @@ FodyWeavers.xsd
 docs/superpowers/
 .claude/
 CLAUDE.md
+
+# machine-specific build paths
+local.build.props
