@@ -9,7 +9,7 @@ namespace SCH1_StackLimitPlus.UI
     // The menu itself: header, sidebar tabs, content, footer. Hosted by the F6 overlay or the phone app.
     public class MenuView
     {
-        public const string Version = "2.0.0";
+        public const string Version = "2.0.1";
 
         readonly bool _phone;
         readonly RectTransform _sidebar;
